@@ -415,39 +415,51 @@ async def ai_chat_handler(message: types.Message):
             return
         last_message_time[user_id] = now
     
-    # ДИАГНОСТИКА
-    logger.info(f"📨 Сообщение от {message.from_user.id} в чате {message.chat.id}")
-    logger.info(f"📝 Текст: {message.text}")
+    # Получаем username бота
+    bot_user = await bot.me
+    bot_username = bot_user.username if bot_user else None
+    logger.info(f"🤖 bot_username = {bot_username}")
     
-    # Получаем username бота (безопасно)
-    try:
-        bot_user = await bot.me
-        bot_username = bot_user.username if bot_user else None
-        logger.info(f"🤖 bot_user = {bot_user}")
-        logger.info(f"🔤 bot_username = {bot_username}")
-    except Exception as e:
-        logger.error(f"❌ Ошибка получения bot.me: {e}")
-        bot_username = None
-    
-    # Проверяем упоминание
+    # Проверяем упоминание (универсально)
     is_mentioned = False
+    
+    # 1. Через текст
     if bot_username and f"@{bot_username}" in message.text.lower():
         is_mentioned = True
-        logger.info(f"✅ Упоминание обнаружено!")
-    else:
-        logger.info(f"❌ Упоминание не найдено")
+        logger.info(f"✅ Упоминание через текст")
+    
+    # 2. Через entities
+    if not is_mentioned and message.entities:
+        for entity in message.entities:
+            if entity.type == 'mention':
+                mentioned = message.text[entity.offset:entity.offset + entity.length]
+                if mentioned.lower() == f"@{bot_username.lower()}":
+                    is_mentioned = True
+                    logger.info(f"✅ Упоминание через entities")
+                    break
+    
+    logger.info(f"👀 is_mentioned = {is_mentioned}")
     
     # Отвечаем если упомянули или это личка
     if is_mentioned or message.chat.type == 'private':
         if is_mentioned:
-            prompt = message.text.replace(f"@{bot_username}", "").strip()
-            logger.info(f"💬 Промпт после очистки: '{prompt}'")
+            # Очищаем от упоминания
+            prompt = message.text
+            if bot_username:
+                prompt = prompt.replace(f"@{bot_username}", "").strip()
+                # Также удаляем через entities (на случай если в тексте не было)
+                if message.entities:
+                    for entity in message.entities:
+                        if entity.type == 'mention':
+                            mention = message.text[entity.offset:entity.offset + entity.length]
+                            prompt = prompt.replace(mention, "").strip()
         else:
             prompt = message.text
         
         if not prompt:
             prompt = "Привет!"
         
+        logger.info(f"💬 Отвечаем на: '{prompt}'")
         response = await get_ai_response(prompt, message.chat.id)
         await message.reply(response)
     else:
