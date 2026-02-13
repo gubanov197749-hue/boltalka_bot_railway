@@ -1,3 +1,5 @@
+import openai
+from openai.error import AuthenticationError, RateLimitError, APIConnectionError, APIError
 import asyncio
 import logging
 import random
@@ -47,10 +49,66 @@ def init_db():
 # Создаем таблицы при запуске
 init_db()
 
-# ================ AI CHAT (ВРЕМЕННАЯ ЗАГЛУШКА) ================
-async def get_ai_response(prompt: str, chat_id: int = None):
-    """Временная заглушка вместо MegaNova"""
-    return f"Ты написал: '{prompt}'. Я пока учусь общаться, но уже умею играть! 🎮\n\nПопробуй команды:\n/crocodile - Крокодил\n/fact - факт\n/karma - карма"
+# ================ AI CHAT (MEGANOVA) ================
+import openai
+from openai.error import AuthenticationError, RateLimitError, APIConnectionError, APIError
+
+# Настройка OpenAI-совместимого клиента для MegaNova
+openai.api_key = MEGANOVA_API_KEY
+openai.api_base = "https://api.meganova.ai/v1"
+
+async def get_ai_response(prompt: str, chat_id: int = None) -> str:
+    """
+    Получение ответа от MegaNova API с полной диагностикой ошибок.
+    """
+    # Проверяем, что ключ API вообще есть
+    if not MEGANOVA_API_KEY or MEGANOVA_API_KEY == "sk-JGE1ns1NfZxW3VVgTThgfw":
+        logger.error("MEGANOVA_API_KEY не задан или используется ключ по умолчанию!")
+        return "🔑 Ошибка: API ключ не настроен. Обратись к администратору."
+
+    logger.info(f"🤖 Запрос к MegaNova: {prompt[:50]}...")
+    
+    try:
+        # Используем асинхронный вызов
+        response = await openai.ChatCompletion.acreate(
+            model="deepseek-ai/DeepSeek-V3-0324-Free",
+            messages=[
+                {"role": "system", "content": (
+                    "Ты Болталка — весёлый развлекательный бот для чатов. "
+                    "Отвечаешь коротко (1-3 предложения), с эмодзи, по-дружески. "
+                    "Твоя задача — создавать настроение и поддерживать общение."
+                )},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.8,
+            max_tokens=250,
+            request_timeout=30  # Таймаут 30 секунд
+        )
+        
+        # Извлекаем ответ
+        result = response.choices[0].message.content.strip()
+        logger.info(f"✅ Ответ получен, длина: {len(result)} символов")
+        return result
+
+    except AuthenticationError as e:
+        logger.error(f"🔴 Ошибка аутентификации MegaNova: {e}")
+        return "🔑 Ошибка ключа API. Проверь переменную MEGANOVA_API_KEY."
+    
+    except RateLimitError as e:
+        logger.error(f"⏳ Превышен лимит запросов MegaNova: {e}")
+        return "⏳ Слишком много запросов. Подожди немного и попробуй снова."
+    
+    except APIConnectionError as e:
+        logger.error(f"🌐 Проблема соединения с MegaNova: {e}")
+        return "🌐 Не могу достучаться до нейросети. Возможно, API временно недоступен."
+    
+    except APIError as e:
+        logger.error(f"⚙️ Ошибка API MegaNova: {e}")
+        return "⚙️ Нейросеть временно не отвечает. Попробуй позже."
+    
+    except Exception as e:
+        logger.error(f"💥 Неизвестная ошибка MegaNova: {e}", exc_info=True)
+        return f"🤔 Что-то пошло не так. Но я жив! Попробуй другие команды."
 
 # ================ КАРМА ================
 def add_karma(user_id: int, chat_id: int, value: int = 1):
