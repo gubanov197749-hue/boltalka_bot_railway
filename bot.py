@@ -58,6 +58,12 @@ openai.api_key = MEGANOVA_API_KEY
 openai.api_base = "https://api.meganova.ai/v1"
 
 async def get_ai_response(prompt: str, chat_id: int = None) -> str:
+    # Диагностика ключа
+    logger.info(f"🔑 MEGANOVA_API_KEY = {MEGANOVA_API_KEY[:5]}...{MEGANOVA_API_KEY[-5:]}")
+    
+    if not MEGANOVA_API_KEY:
+        logger.error("MEGANOVA_API_KEY пустой!")
+        return "🔑 Ошибка: API ключ не найден в переменных окружения."
     """
     Получение ответа от MegaNova API с полной диагностикой ошибок.
     """
