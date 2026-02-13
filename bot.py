@@ -403,12 +403,11 @@ async def ai_chat_handler(message: types.Message):
     conn = sqlite3.connect('bot_database.db')
     c = conn.cursor()
     c.execute("SELECT * FROM games WHERE chat_id = ? AND active = 1", (message.chat.id,))
-    game_active = c.fetchone() is not None
-    conn.close()
-    
-    if game_active:
-        # Если идёт игра — не отвечаем AI (пусть играют)
+    if c.fetchone():
+        conn.close()
+        # Идёт игра — молчим, не отвечаем
         return
+    conn.close()
     
     # 3. Защита от спама (только для групп)
     if message.chat.type != 'private':
