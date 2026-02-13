@@ -450,14 +450,14 @@ if c.fetchone():
     return
 conn.close()
     
-    # Защита от спама (группы)
-    if message.chat.type != 'private':
-        user_id = message.from_user.id
-        now = time.time()
-        if user_id in last_message_time and now - last_message_time[user_id] < 8:
-            logger.info(f"⏳ Спам-защита для {user_id}, молчим")
-            return
-        last_message_time[user_id] = now
+# Защита от спама (группы)
+if message.chat.type != 'private':
+    user_id = message.from_user.id
+    now = time.time()
+    if user_id in last_message_time and now - last_message_time[user_id] < 8:
+        logger.info(f"⏳ Спам-защита для {user_id}, молчим")
+        return
+    last_message_time[user_id] = now
     
     # Получаем username бота
     bot_user = await bot.me
