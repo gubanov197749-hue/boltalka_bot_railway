@@ -396,20 +396,59 @@ async def ai_chat_handler(message: types.Message):
     if message.text.startswith('/'):
         return
     
-    # Получаем username бота
-    bot_user = await bot.me
-    bot_username = bot_user.username if bot_user else None
+    # Проверка на активную игру
+    conn = sqlite3.connect('bot_database.db')
+    c = conn.cursor()
+    c.execute("SELECT * FROM games WHERE chat_id = ? AND active = 1", (message.chat.id,))
+    if c.fetchone():
+        conn.close()
+        logger.info(f"🎮 Игра идёт в чате {message.chat.id}, молчим")
+        return
+    conn.close()
+    
+    # Защита от спама (группы)
+    if message.chat.type != 'private':
+        user_id = message.from_user.id
+        now = time.time()
+        if user_id in last_message_time and now - last_message_time[user_id] < 8:
+            logger.info(f"⏳ Спам-защита для {user_id}, молчим")
+            return
+        last_message_time[user_id] = now
+    
+    # ДИАГНОСТИКА
+    logger.info(f"📨 Сообщение от {message.from_user.id} в чате {message.chat.id}")
+    logger.info(f"📝 Текст: {message.text}")
+    
+    # Получаем username бота (безопасно)
+    try:
+        bot_user = await bot.me
+        bot_username = bot_user.username if bot_user else None
+        logger.info(f"🤖 bot_user = {bot_user}")
+        logger.info(f"🔤 bot_username = {bot_username}")
+    except Exception as e:
+        logger.error(f"❌ Ошибка получения bot.me: {e}")
+        bot_username = None
     
     # Проверяем упоминание
+    is_mentioned = False
     if bot_username and f"@{bot_username}" in message.text.lower():
-        prompt = message.text.replace(f"@{bot_username}", "").strip()
+        is_mentioned = True
+        logger.info(f"✅ Упоминание обнаружено!")
+    else:
+        logger.info(f"❌ Упоминание не найдено")
+    
+    # Отвечаем если упомянули или это личка
+    if is_mentioned or message.chat.type == 'private':
+        if is_mentioned:
+            prompt = message.text.replace(f"@{bot_username}", "").strip()
+            logger.info(f"💬 Промпт после очистки: '{prompt}'")
+        else:
+            prompt = message.text
+        
         if not prompt:
             prompt = "Привет!"
         
         response = await get_ai_response(prompt, message.chat.id)
         await message.reply(response)
     else:
-        # В личке отвечаем всегда
-        if message.chat.type == 'private':
-            response = await get_ai_response(message.text, message.chat.id)
-            await message.reply(response)
+        logger.info(f"⏭️ Нет упоминания и не личка, молчим")
