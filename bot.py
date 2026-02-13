@@ -400,15 +400,25 @@ async def ai_chat_handler(message: types.Message):
         return
     
     # 2. Проверяем, идёт ли игра в этом чате
-    # ВАЖНО: открываем новое соединение для каждой проверки
-    conn = sqlite3.connect('bot_database.db')
-    c = conn.cursor()
-    c.execute("SELECT * FROM games WHERE chat_id = ? AND active = 1", (message.chat.id,))
-    game = c.fetchone()
-    conn.close()
+    # ВАЖНО: делаем несколько попыток прочитать игру
+    game_active = False
+    for attempt in range(3):  # Три попытки с паузой
+        conn = sqlite3.connect('bot_database.db')
+        c = conn.cursor()
+        c.execute("SELECT * FROM games WHERE chat_id = ? AND active = 1", (message.chat.id,))
+        game = c.fetchone()
+        conn.close()
+        
+        if game:
+            game_active = True
+            break
+        
+        # Если игры нет, но могла только что начаться - подождём
+        if attempt < 2:
+            await asyncio.sleep(0.1)  # 100 мс пауза
     
-    # Если игра идёт — не отвечаем НИ ПРИ КАКИХ УСЛОВИЯХ
-    if game:
+    # Если игра идёт — НЕ ОТВЕЧАЕМ
+    if game_active:
         return
     
     # 3. Защита от спама (только для групп)
