@@ -96,9 +96,13 @@ async def get_ai_response(prompt: str, chat_id: int = None) -> str:
         logger.info(f"✅ Ответ получен")
         return result
         
-    except Exception as e:
-        logger.error(f"Ошибка MegaNova: {e}")
-        return "😔 Ой, нейросеть временно не отвечает. Попробуй позже."
+except Exception as e:
+    logger.error(f"Ошибка MegaNova: {e}")
+    # Если ошибка из-за лимита
+    if "quota" in str(e).lower() or "rate limit" in str(e).lower() or "429" in str(e):
+        return "🥺 Сегодня я уже наболталась! Завтра снова буду болтать. А пока давай в игру? /crocodile"
+    else:
+        return "😔 Что-то пошло не так. Попробуй позже или напиши /help"
 
 # ================ КАРМА ================
 def add_karma(user_id: int, chat_id: int, value: int = 1):
