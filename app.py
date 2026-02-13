@@ -1,9 +1,9 @@
 import os
 import logging
-import asyncio
 from flask import Flask, request, jsonify
 import requests
 from datetime import datetime
+import asyncio
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -12,65 +12,65 @@ logger = logging.getLogger(__name__)
 # Импортируем бота
 from bot import dp, bot
 from aiogram import types
-from config import WEBHOOK_URL, BOT_TOKEN
+from config import BOT_TOKEN
 
 # Создаем Flask приложение
 app = Flask(__name__)
 
 @app.route('/')
 def index():
-    """Главная страница - проверка что бот работает"""
-    return '''
-    <html>
-        <head>
-            <title>Бот Болталка</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 40px; text-align: center; }
-                h1 { color: #2c3e50; }
-                .success { color: #27ae60; font-size: 24px; margin: 20px; }
-                .info { color: #34495e; margin: 10px; }
-            </style>
-        </head>
-        <body>
+    return '''<html>
+        <head><title>Бот Болталка</title></head>
+        <body style="font-family: Arial; text-align: center; margin-top: 50px;">
             <h1>🤖 Бот Болталка</h1>
-            <div class="success">✅ Бот запущен и работает!</div>
-            <div class="info">Telegram: @BoltalkaChatBot_bot</div>
-            <div class="info">
-                <a href="/webhook_info">Проверить вебхук</a> | 
-                <a href="/set_webhook">Установить вебхук</a>
-            </div>
+            <p style="color: green; font-size: 24px;">✅ Бот запущен и работает!</p>
+            <p>Telegram: <b>@BoltalkaChatBot_bot</b></p>
+            <p><a href="/webhook_info">Проверить вебхук</a> | <a href="/set_webhook">Установить вебхук</a></p>
         </body>
-    </html>
-    '''
+    </html>'''
 
 @app.route('/webhook', methods=['POST'])
-async def webhook():
-    """Принимаем обновления от Telegram"""
+def webhook():
+    """Синхронная версия вебхука"""
     if request.method == 'POST':
         try:
             update_data = request.get_json()
             logger.info(f"Получено обновление: {update_data.get('update_id')}")
+            
+            # Создаем новый цикл событий для каждого запроса
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            # Обрабатываем обновление
             update = types.Update(**update_data)
-            await dp.process_update(update)
+            loop.run_until_complete(dp.process_update(update))
+            
+            loop.close()
             return 'OK', 200
         except Exception as e:
             logger.error(f"Ошибка обработки вебхука: {e}")
+            import traceback
+            traceback.print_exc()
             return 'Error', 500
     return 'Method not allowed', 405
 
 @app.route('/set_webhook', methods=['GET'])
 def set_webhook():
-    """Установка вебхука для бота"""
+    """Установка вебхука"""
     try:
-        railway_url = os.getenv('RAILWAY_PUBLIC_DOMAIN')
+        railway_url = os.getenv('RAILWAY_STATIC_URL')
         if not railway_url:
-            railway_url = os.getenv('RAILWAY_STATIC_URL')
+            railway_url = os.getenv('RAILWAY_PUBLIC_DOMAIN')
         
         if not railway_url:
             return "❌ Ошибка: Не удалось определить URL приложения", 500
         
         webhook_url = f"https://{railway_url}/webhook"
         
+        # Удаляем старый вебхук
+        requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook")
+        
+        # Устанавливаем новый
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook"
         response = requests.post(url, json={
             'url': webhook_url,
@@ -80,21 +80,10 @@ def set_webhook():
         if response.status_code == 200:
             result = response.json()
             if result.get('ok'):
-                return f'''
-                <html>
-                    <head><title>Webhook установлен</title></head>
-                    <body style="font-family: Arial; margin: 40px;">
-                        <h1 style="color: #27ae60;">✅ Webhook успешно установлен!</h1>
-                        <p>URL: <code>{webhook_url}</code></p>
-                        <p>Ответ Telegram: {result}</p>
-                        <p><a href="/">Вернуться на главную</a></p>
-                    </body>
-                </html>
-                '''
+                return f"✅ Webhook успешно установлен на {webhook_url}", 200
         
-        return f"❌ Ошибка установки вебхука: {response.text}", 500
+        return f"❌ Ошибка: {response.text}", 500
     except Exception as e:
-        logger.error(f"Ошибка установки вебхука: {e}")
         return f"❌ Ошибка: {str(e)}", 500
 
 @app.route('/delete_webhook', methods=['GET'])
@@ -103,60 +92,23 @@ def delete_webhook():
     try:
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook"
         response = requests.get(url)
-        result = response.json()
-        if result.get('ok'):
-            return "✅ Webhook успешно удален!", 200
-        return f"❌ Ошибка удаления: {result}", 500
+        return "✅ Webhook удален", 200
     except Exception as e:
         return f"❌ Ошибка: {str(e)}", 500
 
 @app.route('/webhook_info', methods=['GET'])
 def webhook_info():
-    """Информация о текущем вебхуке"""
+    """Информация о вебхуке"""
     try:
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/getWebhookInfo"
         response = requests.get(url)
-        result = response.json()
-        
-        if result.get('ok'):
-            info = result.get('result', {})
-            webhook_url = info.get('url', 'не установлен')
-            
-            html = f'''
-            <html>
-                <head><title>Информация о вебхуке</title></head>
-                <body style="font-family: Arial; margin: 40px;">
-                    <h1>🔍 Информация о вебхуке</h1>
-                    <p><b>URL:</b> <code>{webhook_url}</code></p>
-                    <p><b>Ожидает обновлений:</b> {info.get('pending_update_count', 0)}</p>
-                    <p><b>Последняя ошибка:</b> {info.get('last_error_message', 'нет')}</p>
-                    <p><b>Последняя ошибка в:</b> {info.get('last_error_date', 'никогда')}</p>
-                    <p><a href="/">На главную</a> | <a href="/set_webhook">Переустановить</a></p>
-                </body>
-            </html>
-            '''
-            return html, 200
-        
-        return f"❌ Ошибка: {result}", 500
+        return jsonify(response.json()), 200
     except Exception as e:
-        return f"❌ Ошибка: {str(e)}", 500
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/health', methods=['GET'])
 def health():
-    """Проверка здоровья для Railway"""
-    return jsonify({
-        'status': 'healthy',
-        'bot': 'running',
-        'timestamp': datetime.now().isoformat()
-    }), 200
-
-@app.errorhandler(404)
-def not_found(e):
-    return jsonify({'error': 'Not found'}), 404
-
-@app.errorhandler(500)
-def internal_error(e):
-    return jsonify({'error': 'Internal server error'}), 500
+    return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()}), 200
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))
