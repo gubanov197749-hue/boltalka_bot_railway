@@ -8,7 +8,6 @@ from datetime import datetime
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from openai import AsyncOpenAI
 from config import BOT_TOKEN, MEGANOVA_API_KEY
 
 # Настройка логирования
@@ -49,10 +48,25 @@ def init_db():
 init_db()
 
 # ================ AI CHAT (MEGANOVA) ================
-client = AsyncOpenAI(
-    api_key=MEGANOVA_API_KEY,
-    base_url="https://api.meganova.ai/v1"
-)
+import openai
+openai.api_key = MEGANOVA_API_KEY
+openai.api_base = "https://api.meganova.ai/v1"
+
+async def get_ai_response(prompt: str, chat_id: int = None):
+    try:
+        response = await openai.ChatCompletion.acreate(
+            model="deepseek-ai/DeepSeek-V3-0324-Free",
+            messages=[
+                {"role": "system", "content": "Ты Болталка — весёлый развлекательный бот для чатов. Отвечаешь коротко, с эмодзи, по-дружески."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.8,
+            max_tokens=200
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        logger.error(f"MegaNova API error: {e}")
+        return "Я тут! Просто задумалась 🤗 Расскажи ещё!"
 
 async def get_ai_response(prompt: str, chat_id: int = None):
     """Получение ответа от MegaNova API"""
