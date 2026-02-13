@@ -444,8 +444,8 @@ if c.fetchone():
     logger.info(f"🎮 Игра идёт в чате {message.chat.id}, молчим")
     
     # Проверяем, не угадал ли кто слово
-    if await check_crocodile_guess(message):
-        return  # Угадал — уже ответили, выходим
+    if await check_crocodile_guess(message):  ← await ТОЛЬКО здесь
+        return
     
     return
 conn.close()
