@@ -12,49 +12,14 @@ import time
 # Словарь для защиты от спама (время последнего сообщения пользователя)
 last_message_time = {}
 
+# Словарь для подсказок (чтобы не спамить)
+last_hint_time = {}
+
 from datetime import datetime
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from config import BOT_TOKEN, MEGANOVA_API_KEY
-
-async def check_crocodile_guess(message: types.Message) -> bool:
-    """Проверяет, угадал ли игрок слово в Крокодиле.
-       Возвращает True, если слово угадано."""
-    
-    conn = sqlite3.connect('bot_database.db')
-    c = conn.cursor()
-    
-    # Ищем активную игру
-    c.execute("SELECT word FROM games WHERE chat_id = ? AND game_type = 'crocodile' AND active = 1", 
-              (message.chat.id,))
-    result = c.fetchone()
-    
-    if not result:
-        conn.close()
-        return False
-    
-    word = result[0]
-    
-    # Сравниваем (регистронезависимо)
-    if message.text.lower().strip() == word.lower():
-        # Ура, угадал!
-        c.execute("UPDATE games SET active = 0 WHERE chat_id = ? AND game_type = 'crocodile'", 
-                  (message.chat.id,))
-        conn.commit()
-        conn.close()
-        
-        # Добавляем карму победителю
-        add_karma(message.from_user.id, message.chat.id, 1)
-        
-        await message.reply(
-            f"🎉 Поздравляю, {message.from_user.first_name}! Ты угадал слово *{word}*!\n"
-            f"⭐ +1 к карме за победу!"
-        )
-        return True
-    
-    conn.close()
-    return False
 
 # ===== ДИАГНОСТИКА =====
 import os
@@ -92,12 +57,130 @@ def init_db():
                  (chat_id INTEGER, user1_id INTEGER, user2_id INTEGER, 
                   date TEXT)''')
     
+    # Таблица слов для игры
+    c.execute('''CREATE TABLE IF NOT EXISTS game_words
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  word TEXT UNIQUE,
+                  added_by INTEGER,
+                  added_at TIMESTAMP)''')
+    
     conn.commit()
+    
+    # Добавляем начальные слова, если таблица пуста
+    c.execute("SELECT COUNT(*) FROM game_words")
+    count = c.fetchone()[0]
+    if count == 0:
+        default_words = ["крокодил", "слон", "робот", "пицца", "самолёт", 
+                         "кофе", "гитара", "радуга", "космос", "шоколад",
+                         "интернет", "дружба", "солнце", "море", "поезд",
+                         "телефон", "компьютер", "книга", "цветок", "дождь"]
+        for word in default_words:
+            try:
+                c.execute("INSERT INTO game_words (word, added_by, added_at) VALUES (?, ?, ?)",
+                          (word, 0, datetime.now()))  # added_by = 0 значит служебное
+            except:
+                pass
+        conn.commit()
+        logger.info("Добавлены начальные слова для игры")
+    
     conn.close()
     logger.info("База данных инициализирована")
 
 # Создаем таблицы при запуске
 init_db()
+
+# ================ ФУНКЦИИ ДЛЯ ИГРОВЫХ СЛОВ ================
+def get_random_word():
+    """Возвращает случайное слово из базы данных"""
+    conn = sqlite3.connect('bot_database.db')
+    c = conn.cursor()
+    c.execute("SELECT word FROM game_words ORDER BY RANDOM() LIMIT 1")
+    result = c.fetchone()
+    conn.close()
+    
+    if result:
+        return result[0]
+    else:
+        # Если слов нет — возвращаем слово по умолчанию
+        return "крокодил"
+
+async def is_user_admin(message: types.Message) -> bool:
+    """Проверяет, является ли пользователь администратором чата"""
+    try:
+        user = await bot.get_chat_member(message.chat.id, message.from_user.id)
+        return user.status in ['creator', 'administrator']
+    except:
+        return False
+
+def get_hint(guess: str, target: str) -> str:
+    """Возвращает подсказку на основе сравнения слов"""
+    guess = guess.lower().strip()
+    target = target.lower().strip()
+    
+    # Если слова совпадают по длине
+    if len(guess) == len(target):
+        # Считаем совпадающие буквы
+        matches = sum(1 for g, t in zip(guess, target) if g == t)
+        if matches > len(target) * 0.7:
+            return "🔥 Очень горячо! Ты очень близко!"
+        elif matches > len(target) * 0.4:
+            return "🌡️ Тепло! Есть совпадения"
+        else:
+            return "❄️ Холодно. Совсем не то"
+    
+    # Если длина разная
+    elif abs(len(guess) - len(target)) <= 2:
+        return "🌊 Тёпленько! Почти та же длина"
+    elif len(guess) < len(target):
+        return "⬆️ Слово короче загаданного"
+    else:
+        return "⬇️ Слово длиннее загаданного"
+
+async def check_crocodile_guess(message: types.Message) -> bool:
+    """Проверяет, угадал ли игрок слово. Даёт подсказки, если не угадал."""
+    
+    conn = sqlite3.connect('bot_database.db')
+    c = conn.cursor()
+    
+    # Ищем активную игру
+    c.execute("SELECT word FROM games WHERE chat_id = ? AND game_type = 'crocodile' AND active = 1", 
+              (message.chat.id,))
+    result = c.fetchone()
+    
+    if not result:
+        conn.close()
+        return False
+    
+    word = result[0]
+    
+    # Сравниваем (регистронезависимо)
+    if message.text.lower().strip() == word.lower():
+        # Ура, угадал!
+        c.execute("UPDATE games SET active = 0 WHERE chat_id = ? AND game_type = 'crocodile'", 
+                  (message.chat.id,))
+        conn.commit()
+        conn.close()
+        
+        # Добавляем карму победителю
+        add_karma(message.from_user.id, message.chat.id, 1)
+        
+        await message.reply(
+            f"🎉 Поздравляю, {message.from_user.first_name}! Ты угадал слово *{word}*!\n"
+            f"⭐ +1 к карме за победу!"
+        )
+        return True
+    
+    # Если не угадал — даём подсказку (но не чаще раза в 30 секунд)
+    chat_id = message.chat.id
+    now = time.time()
+    
+    if chat_id not in last_hint_time or now - last_hint_time[chat_id] > 30:
+        hint = get_hint(message.text, word)
+        await message.reply(f"🤔 {hint}")
+        last_hint_time[chat_id] = now
+    
+    conn.close()
+    return False
 
 # ================ AI CHAT (MEGANOVA) ================
 import openai
@@ -173,6 +256,61 @@ def get_top_karma(chat_id: int, limit: int = 10):
     conn.close()
     return result
 
+# ================ НОВЫЕ КОМАНДЫ ДЛЯ СЛОВ ================
+@dp.message_handler(commands=['addword'])
+async def cmd_addword(message: types.Message):
+    """Добавляет новое слово в игру (только для админов)"""
+    
+    # Проверяем, является ли пользователь админом
+    if not await is_user_admin(message):
+        await message.reply("❌ Только администраторы могут добавлять слова")
+        return
+    
+    # Проверяем, есть ли текст после команды
+    parts = message.text.split(maxsplit=1)
+    if len(parts) < 2:
+        await message.reply("❌ Напиши слово после команды, например:\n/addword самолёт")
+        return
+    
+    new_word = parts[1].strip().lower()
+    
+    # Проверяем длину
+    if len(new_word) < 3:
+        await message.reply("❌ Слово должно быть длиннее 2 букв")
+        return
+    if len(new_word) > 20:
+        await message.reply("❌ Слово слишком длинное (максимум 20 букв)")
+        return
+    
+    conn = sqlite3.connect('bot_database.db')
+    c = conn.cursor()
+    
+    try:
+        c.execute("INSERT INTO game_words (word, added_by, added_at) VALUES (?, ?, ?)",
+                  (new_word, message.from_user.id, datetime.now()))
+        conn.commit()
+        await message.reply(f"✅ Слово «{new_word}» добавлено в игру!")
+    except sqlite3.IntegrityError:
+        await message.reply(f"⚠️ Слово «{new_word}» уже есть в списке")
+    finally:
+        conn.close()
+
+@dp.message_handler(commands=['words'])
+async def cmd_words(message: types.Message):
+    """Показывает все доступные слова"""
+    conn = sqlite3.connect('bot_database.db')
+    c = conn.cursor()
+    c.execute("SELECT word FROM game_words ORDER BY word")
+    words = c.fetchall()
+    conn.close()
+    
+    if not words:
+        await message.reply("📭 Список слов пока пуст. Добавь через /addword")
+        return
+    
+    word_list = "\n".join([f"• {w[0]}" for w in words])
+    await message.reply(f"📚 Доступные слова ({len(words)} шт.):\n{word_list}")
+
 # ================ ОБРАБОТЧИКИ КОМАНД ================
 @dp.message_handler(commands=['start'])
 async def cmd_start(message: types.Message):
@@ -211,6 +349,8 @@ async def cmd_help(message: types.Message):
 • /crocodile — начать игру в Крокодила
 • /duel @user — вызвать на дуэль
 • /couple — выбрать пару дня
+• /addword — добавить слово в игру (только админы)
+• /words — список всех слов
 
 🔍 <b>Полезное:</b>
 • /factcheck [утверждение] — проверить факт"""
@@ -282,9 +422,8 @@ async def cmd_crocodile(message: types.Message):
         conn.close()
         return
     
-    words = ["крокодил", "слон", "робот", "пицца", "самолёт", "кофе", 
-             "гитара", "радуга", "космос", "шоколад", "интернет", "дружба"]
-    word = random.choice(words)
+    # Получаем случайное слово из базы
+    word = get_random_word()
     
     c.execute("INSERT INTO games (chat_id, game_type, active, word, started_at) VALUES (?, ?, ?, ?, ?)",
               (message.chat.id, "crocodile", 1, word, datetime.now()))
@@ -431,8 +570,7 @@ async def verify_callback(callback_query: types.CallbackQuery):
     
     await callback_query.answer()
 
-# ================ ВАЖНО: здесь verify_callback ЗАКОНЧИЛАСЬ ================
-
+# ================ ОСНОВНОЙ ОБРАБОТЧИК СООБЩЕНИЙ ================
 @dp.message_handler(content_types=['text'])
 async def ai_chat_handler(message: types.Message):
     if message.text.startswith('/'):
@@ -446,7 +584,7 @@ async def ai_chat_handler(message: types.Message):
         conn.close()
         logger.info(f"🎮 Игра идёт в чате {message.chat.id}, молчим")
         
-        # Проверяем, не угадал ли кто слово
+        # Проверяем, не угадал ли кто слово (с подсказками)
         if await check_crocodile_guess(message):
             return
         
@@ -473,7 +611,7 @@ async def ai_chat_handler(message: types.Message):
         is_mentioned = True
         logger.info(f"✅ Упоминание через текст")
     
-    # 2. Через entities
+    # Проверка через entities
     if not is_mentioned and message.entities:
         for entity in message.entities:
             if entity.type == 'mention':
@@ -492,7 +630,7 @@ async def ai_chat_handler(message: types.Message):
             prompt = message.text
             if bot_username:
                 prompt = prompt.replace(f"@{bot_username}", "").strip()
-                # Также удаляем через entities (на случай если в тексте не было)
+                # Также удаляем через entities
                 if message.entities:
                     for entity in message.entities:
                         if entity.type == 'mention':
