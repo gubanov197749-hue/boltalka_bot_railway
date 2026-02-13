@@ -12,6 +12,12 @@ from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from config import BOT_TOKEN, MEGANOVA_API_KEY
 
+# ===== ДИАГНОСТИКА =====
+import os
+print(f"🔥 BOT_TOKEN = {os.getenv('BOT_TOKEN')}")
+print(f"🔥 MEGANOVA_API_KEY = {os.getenv('MEGANOVA_API_KEY')}")
+# ========================
+
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
