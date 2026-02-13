@@ -400,14 +400,16 @@ async def ai_chat_handler(message: types.Message):
         return
     
     # 2. Проверяем, идёт ли игра в этом чате
+    # ВАЖНО: открываем новое соединение для каждой проверки
     conn = sqlite3.connect('bot_database.db')
     c = conn.cursor()
     c.execute("SELECT * FROM games WHERE chat_id = ? AND active = 1", (message.chat.id,))
-    if c.fetchone():
-        conn.close()
-        # Идёт игра — молчим, не отвечаем
-        return
+    game = c.fetchone()
     conn.close()
+    
+    # Если игра идёт — не отвечаем НИ ПРИ КАКИХ УСЛОВИЯХ
+    if game:
+        return
     
     # 3. Защита от спама (только для групп)
     if message.chat.type != 'private':
