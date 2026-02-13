@@ -399,32 +399,36 @@ async def ai_chat_handler(message: types.Message):
     if message.text.startswith('/'):
         return
     
-    # 2. Защита от спама (только для групп)
+    # 2. Проверяем, идёт ли игра в этом чате
+    conn = sqlite3.connect('bot_database.db')
+    c = conn.cursor()
+    c.execute("SELECT * FROM games WHERE chat_id = ? AND active = 1", (message.chat.id,))
+    game_active = c.fetchone() is not None
+    conn.close()
+    
+    if game_active:
+        # Если идёт игра — не отвечаем AI (пусть играют)
+        return
+    
+    # 3. Защита от спама (только для групп)
     if message.chat.type != 'private':
         user_id = message.from_user.id
         now = time.time()
         if user_id in last_message_time and now - last_message_time[user_id] < 8:
-            return  # Молчим, если прошло меньше 8 секунд
+            return
         last_message_time[user_id] = now
     
-    # 3. Получаем username бота
+    # 4. Получаем username бота
     bot_user = await bot.me
     bot_username = bot_user.username if bot_user else "BoltalkaChatBot_bot"
     
-    # 4. Проверяем, стоит ли отвечать
+    # 5. Проверяем, стоит ли отвечать
     is_mentioned = bot_username and f"@{bot_username}" in message.text.lower()
     is_reply_to_bot = message.reply_to_message and message.reply_to_message.from_user.id == bot.id
     is_private = message.chat.type == 'private'
     
-    # Условия для ответа:
-    # - в личке отвечаем всегда
-    # - в группе: если упомянули или ответили боту
     if is_private or is_mentioned or is_reply_to_bot:
-        # Очищаем текст от упоминания
-        prompt = message.text
-        if bot_username:
-            prompt = prompt.replace(f"@{bot_username}", "").strip()
-        
+        prompt = message.text.replace(f"@{bot_username}", "").strip()
         if not prompt:
             prompt = "Привет!"
         
