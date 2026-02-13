@@ -393,55 +393,10 @@ async def verify_callback(callback_query: types.CallbackQuery):
 
 @dp.message_handler(content_types=['text'])
 async def ai_chat_handler(message: types.Message):
-    """Умный обработчик: отвечает только когда нужно"""
+    """Временный обработчик для проверки"""
     
-    # 1. Игнорируем команды
+    # Отвечаем на ЛЮБОЕ сообщение, кроме команд
     if message.text.startswith('/'):
         return
     
-    # 2. Проверяем, идёт ли игра в этом чате
-    # ВАЖНО: делаем несколько попыток прочитать игру
-    game_active = False
-    for attempt in range(3):  # Три попытки с паузой
-        conn = sqlite3.connect('bot_database.db')
-        c = conn.cursor()
-        c.execute("SELECT * FROM games WHERE chat_id = ? AND active = 1", (message.chat.id,))
-        game = c.fetchone()
-        conn.close()
-        
-        if game:
-            game_active = True
-            break
-        
-        # Если игры нет, но могла только что начаться - подождём
-        if attempt < 2:
-            await asyncio.sleep(0.1)  # 100 мс пауза
-    
-    # Если игра идёт — НЕ ОТВЕЧАЕМ
-    if game_active:
-        return
-    
-    # 3. Защита от спама (только для групп)
-    if message.chat.type != 'private':
-        user_id = message.from_user.id
-        now = time.time()
-        if user_id in last_message_time and now - last_message_time[user_id] < 8:
-            return
-        last_message_time[user_id] = now
-    
-    # 4. Получаем username бота
-    bot_user = await bot.me
-    bot_username = bot_user.username if bot_user else "BoltalkaChatBot_bot"
-    
-    # 5. Проверяем, стоит ли отвечать
-    is_mentioned = bot_username and f"@{bot_username}" in message.text.lower()
-    is_reply_to_bot = message.reply_to_message and message.reply_to_message.from_user.id == bot.id
-    is_private = message.chat.type == 'private'
-    
-    if is_private or is_mentioned or is_reply_to_bot:
-        prompt = message.text.replace(f"@{bot_username}", "").strip()
-        if not prompt:
-            prompt = "Привет!"
-        
-        response = await get_ai_response(prompt, message.chat.id)
-        await message.reply(response)
+    await message.reply(f"Я тебя слышу! Ты написал: {message.text}")
