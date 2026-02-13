@@ -6,6 +6,10 @@ import random
 import sqlite3
 import aiohttp
 import json
+import time
+
+# Словарь для защиты от спама (время последнего сообщения пользователя)
+last_message_time = {}
 from datetime import datetime
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
@@ -377,41 +381,53 @@ async def welcome_new_member(message: types.Message):
 async def verify_callback(callback_query: types.CallbackQuery):
     """Подтверждение человека"""
     user_id = int(callback_query.data.split("_")[1])
+    
     if callback_query.from_user.id == user_id:
         await callback_query.message.edit_text(
-            f"✅ {callback_query.from_user.first_name} подтверждён! Добро пожаловать в чат!"
+            f"👤 {callback_query.from_user.first_name} подтверждён! Добро пожаловать в чат!"
         )
         add_karma(user_id, callback_query.message.chat.id, 3)
     else:
         await callback_query.answer("Это не твоя кнопка!", show_alert=True)
+    
     await callback_query.answer()
 
 @dp.message_handler(content_types=['text'])
 async def ai_chat_handler(message: types.Message):
-    """Обработка упоминаний бота"""
-    # Получаем информацию о боте (безопасно)
-    try:
-        # Пытаемся получить username разными способами
-        if hasattr(bot, 'username') and bot.username:
-            bot_username = bot.username
-        elif hasattr(bot, '_me') and bot._me:
-            bot_username = bot._me.username
-        else:
-            # Если ничего нет - используем значение по умолчанию
-            bot_username = "BoltalkaChatBot_bot"
-    except:
-        bot_username = "BoltalkaChatBot_bot"
-
-    # Не отвечаем на команды
+    """Умный обработчик: отвечает только когда нужно"""
+    
+    # 1. Игнорируем команды
     if message.text.startswith('/'):
         return
-
-    # Если бот упомянут - отвечаем
-    if bot_username and f"@{bot_username}" in message.text.lower():
-        prompt = message.text.replace(f"@{bot_username}", "").strip()
+    
+    # 2. Защита от спама (только для групп)
+    if message.chat.type != 'private':
+        user_id = message.from_user.id
+        now = time.time()
+        if user_id in last_message_time and now - last_message_time[user_id] < 8:
+            return  # Молчим, если прошло меньше 8 секунд
+        last_message_time[user_id] = now
+    
+    # 3. Получаем username бота
+    bot_user = await bot.me
+    bot_username = bot_user.username if bot_user else "BoltalkaChatBot_bot"
+    
+    # 4. Проверяем, стоит ли отвечать
+    is_mentioned = bot_username and f"@{bot_username}" in message.text.lower()
+    is_reply_to_bot = message.reply_to_message and message.reply_to_message.from_user.id == bot.id
+    is_private = message.chat.type == 'private'
+    
+    # Условия для ответа:
+    # - в личке отвечаем всегда
+    # - в группе: если упомянули или ответили боту
+    if is_private or is_mentioned or is_reply_to_bot:
+        # Очищаем текст от упоминания
+        prompt = message.text
+        if bot_username:
+            prompt = prompt.replace(f"@{bot_username}", "").strip()
+        
+        if not prompt:
+            prompt = "Привет!"
+        
         response = await get_ai_response(prompt, message.chat.id)
-        await message.reply(response)
-    else:
-        # На любое другое сообщение тоже отвечаем (для теста)
-        response = await get_ai_response(message.text, message.chat.id)
         await message.reply(response)
