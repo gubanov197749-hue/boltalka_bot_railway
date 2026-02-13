@@ -3,6 +3,7 @@ import logging
 import asyncio
 from flask import Flask, request, jsonify
 import requests
+from datetime import datetime
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -40,21 +41,17 @@ def index():
             </div>
         </body>
     </html>
-    ''', 200
+    '''
 
 @app.route('/webhook', methods=['POST'])
 async def webhook():
     """Принимаем обновления от Telegram"""
     if request.method == 'POST':
         try:
-            # Получаем обновление от Telegram
             update_data = request.get_json()
             logger.info(f"Получено обновление: {update_data.get('update_id')}")
-            
-            # Создаем объект Update и обрабатываем
             update = types.Update(**update_data)
             await dp.process_update(update)
-            
             return 'OK', 200
         except Exception as e:
             logger.error(f"Ошибка обработки вебхука: {e}")
@@ -65,7 +62,6 @@ async def webhook():
 def set_webhook():
     """Установка вебхука для бота"""
     try:
-        # Получаем URL текущего приложения из переменных окружения Railway
         railway_url = os.getenv('RAILWAY_PUBLIC_DOMAIN')
         if not railway_url:
             railway_url = os.getenv('RAILWAY_STATIC_URL')
@@ -75,7 +71,6 @@ def set_webhook():
         
         webhook_url = f"https://{railway_url}/webhook"
         
-        # Отправляем запрос к Telegram API
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook"
         response = requests.post(url, json={
             'url': webhook_url,
@@ -98,7 +93,6 @@ def set_webhook():
                 '''
         
         return f"❌ Ошибка установки вебхука: {response.text}", 500
-        
     except Exception as e:
         logger.error(f"Ошибка установки вебхука: {e}")
         return f"❌ Ошибка: {str(e)}", 500
@@ -110,7 +104,6 @@ def delete_webhook():
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook"
         response = requests.get(url)
         result = response.json()
-        
         if result.get('ok'):
             return "✅ Webhook успешно удален!", 200
         return f"❌ Ошибка удаления: {result}", 500
@@ -157,10 +150,6 @@ def health():
         'timestamp': datetime.now().isoformat()
     }), 200
 
-# Добавляем импорт datetime для health check
-from datetime import datetime
-
-# Обработчик ошибок
 @app.errorhandler(404)
 def not_found(e):
     return jsonify({'error': 'Not found'}), 404
@@ -169,7 +158,6 @@ def not_found(e):
 def internal_error(e):
     return jsonify({'error': 'Internal server error'}), 500
 
-# Запускаем приложение если файл запущен напрямую
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
