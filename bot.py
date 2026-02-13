@@ -47,43 +47,10 @@ def init_db():
 # Создаем таблицы при запуске
 init_db()
 
-# ================ AI CHAT (MEGANOVA) ================
-import openai
-openai.api_key = MEGANOVA_API_KEY
-openai.api_base = "https://api.meganova.ai/v1"
-
+# ================ AI CHAT (ВРЕМЕННАЯ ЗАГЛУШКА) ================
 async def get_ai_response(prompt: str, chat_id: int = None):
-    try:
-        response = await openai.ChatCompletion.acreate(
-            model="deepseek-ai/DeepSeek-V3-0324-Free",
-            messages=[
-                {"role": "system", "content": "Ты Болталка — весёлый развлекательный бот для чатов. Отвечаешь коротко, с эмодзи, по-дружески."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.8,
-            max_tokens=200
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        logger.error(f"MegaNova API error: {e}")
-        return "Я тут! Просто задумалась 🤗 Расскажи ещё!"
-
-async def get_ai_response(prompt: str, chat_id: int = None):
-    """Получение ответа от MegaNova API"""
-    try:
-        response = await client.chat.completions.create(
-            model="deepseek-ai/DeepSeek-V3-0324-Free",
-            messages=[
-                {"role": "system", "content": "Ты Болталка — весёлый развлекательный бот для чатов. Отвечаешь коротко, с эмодзи, по-дружески. Твоя задача — создавать настроение и поддерживать общение."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.8,
-            max_tokens=200
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        logger.error(f"MegaNova API error: {e}")
-        return "Я тут! Просто задумалась 🤗 Расскажи ещё!"
+    """Временная заглушка вместо MegaNova"""
+    return f"Ты написал: '{prompt}'. Я пока учусь общаться, но уже умею играть! 🎮\n\nПопробуй команды:\n/crocodile - Крокодил\n/fact - факт\n/karma - карма"
 
 # ================ КАРМА ================
 def add_karma(user_id: int, chat_id: int, value: int = 1):
