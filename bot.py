@@ -79,7 +79,7 @@ async def get_ai_response(prompt: str, chat_id: int = None) -> str:
         openai.api_base = "https://api.meganova.ai/v1"
         
         response = await openai.ChatCompletion.acreate(
-            model="deepseek-ai/DeepSeek-V3-0324-Free",
+            model="mistralai/Mistral-Small-3.2-24B-Instruct-2506",
             messages=[
                 {"role": "system", "content": "Ты Болталка — весёлый бот. Отвечай коротко, с эмодзи."},
                 {"role": "user", "content": prompt}
