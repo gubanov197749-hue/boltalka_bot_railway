@@ -430,44 +430,44 @@ async def verify_callback(callback_query: types.CallbackQuery):
     
     await callback_query.answer()
 
+# ================ ВАЖНО: здесь verify_callback ЗАКОНЧИЛАСЬ ================
+
 @dp.message_handler(content_types=['text'])
 async def ai_chat_handler(message: types.Message):
     if message.text.startswith('/'):
         return
     
-# Проверка на активную игру
-conn = sqlite3.connect('bot_database.db')
-c = conn.cursor()
-c.execute("SELECT * FROM games WHERE chat_id = ? AND active = 1", (message.chat.id,))
-if c.fetchone():
+    # Проверка на активную игру
+    conn = sqlite3.connect('bot_database.db')
+    c = conn.cursor()
+    c.execute("SELECT * FROM games WHERE chat_id = ? AND active = 1", (message.chat.id,))
+    if c.fetchone():
+        conn.close()
+        logger.info(f"🎮 Игра идёт в чате {message.chat.id}, молчим")
+        
+        # Проверяем, не угадал ли кто слово
+        if await check_crocodile_guess(message):
+            return
+        
+        return
     conn.close()
-    logger.info(f"🎮 Игра идёт в чате {message.chat.id}, молчим")
     
-    # Проверяем, не угадал ли кто слово
-    if await check_crocodile_guess(message):  ← await ТОЛЬКО здесь
-        return
-    
-    return
-conn.close()
-    
-# Защита от спама (группы)
-if message.chat.type != 'private':
-    user_id = message.from_user.id
-    now = time.time()
-    if user_id in last_message_time and now - last_message_time[user_id] < 8:
-        logger.info(f"⏳ Спам-защита для {user_id}, молчим")
-        return
-    last_message_time[user_id] = now
+    # Защита от спама (группы)
+    if message.chat.type != 'private':
+        user_id = message.from_user.id
+        now = time.time()
+        if user_id in last_message_time and now - last_message_time[user_id] < 8:
+            logger.info(f"⏳ Спам-защита для {user_id}, молчим")
+            return
+        last_message_time[user_id] = now
     
     # Получаем username бота
     bot_user = await bot.me
     bot_username = bot_user.username if bot_user else None
     logger.info(f"🤖 bot_username = {bot_username}")
     
-    # Проверяем упоминание (универсально)
+    # Проверяем упоминание
     is_mentioned = False
-    
-    # 1. Через текст
     if bot_username and f"@{bot_username}" in message.text.lower():
         is_mentioned = True
         logger.info(f"✅ Упоминание через текст")
