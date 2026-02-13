@@ -345,7 +345,10 @@ async def verify_callback(callback_query: types.CallbackQuery):
 @dp.message_handler(content_types=['text'])
 async def ai_chat_handler(message: types.Message):
     """Обработка упоминаний бота"""
-    if f"@{bot.username}" in message.text.lower():
+    # Получаем username бота (безопасно)
+bot_username = bot._me.username if bot._me else None
+if bot_username and f"@{bot_username}" in message.text.lower():
+    # ... обработка
         prompt = message.text.replace(f"@{bot.username}", "").strip()
         if prompt:
             response = await get_ai_response(prompt, message.chat.id)
