@@ -137,13 +137,13 @@ def get_hint(guess: str, target: str) -> str:
         return "⬇️ Слово длиннее загаданного"
 
 async def check_crocodile_guess(message: types.Message) -> bool:
-    """Проверяет, угадал ли игрок слово. Даёт подсказки, если не угадал."""
+    """Проверяет, угадал ли игрок слово. Даёт подсказки и следит за временем."""
     
     conn = sqlite3.connect('bot_database.db')
     c = conn.cursor()
     
-    # Ищем активную игру
-    c.execute("SELECT word FROM games WHERE chat_id = ? AND game_type = 'crocodile' AND active = 1", 
+    # Получаем информацию об игре (слово и время начала)
+    c.execute("SELECT word, started_at FROM games WHERE chat_id = ? AND game_type = 'crocodile' AND active = 1", 
               (message.chat.id,))
     result = c.fetchone()
     
@@ -151,7 +151,23 @@ async def check_crocodile_guess(message: types.Message) -> bool:
         conn.close()
         return False
     
-    word = result[0]
+    word, started_at_str = result
+    started_at = datetime.fromisoformat(started_at_str)
+    
+    # Проверяем, не прошло ли 5 минут
+    time_diff = datetime.now() - started_at
+    if time_diff.total_seconds() > 300:  # 5 минут = 300 секунд
+        # Время вышло — завершаем игру
+        c.execute("UPDATE games SET active = 0 WHERE chat_id = ? AND game_type = 'crocodile'", 
+                  (message.chat.id,))
+        conn.commit()
+        conn.close()
+        
+        await message.reply(
+            f"⏰ Время вышло! Никто не угадал слово *{word}*.\n"
+            f"Можете начать новую игру: /crocodile"
+        )
+        return True  # Игра завершена
     
     # Сравниваем (регистронезависимо)
     if message.text.lower().strip() == word.lower():
@@ -584,7 +600,7 @@ async def ai_chat_handler(message: types.Message):
         conn.close()
         logger.info(f"🎮 Игра идёт в чате {message.chat.id}, молчим")
         
-        # Проверяем, не угадал ли кто слово (с подсказками)
+        # Проверяем, не угадал ли кто слово (с подсказками и таймером)
         if await check_crocodile_guess(message):
             return
         
