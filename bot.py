@@ -393,10 +393,8 @@ async def verify_callback(callback_query: types.CallbackQuery):
 
 @dp.message_handler(content_types=['text'])
 async def ai_chat_handler(message: types.Message):
-    """Временный обработчик для проверки"""
-    
-    # Отвечаем на ЛЮБОЕ сообщение, кроме команд
     if message.text.startswith('/'):
         return
     
-    await message.reply(f"Я тебя слышу! Ты написал: {message.text}")
+    response = await get_ai_response(message.text, message.chat.id)
+    await message.reply(response)
