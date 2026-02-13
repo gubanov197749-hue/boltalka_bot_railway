@@ -70,12 +70,9 @@ openai.api_base = "https://api.meganova.ai/v1"
 async def get_ai_response(prompt: str, chat_id: int = None) -> str:
     """Получение ответа от MegaNova API"""
     
-    # Проверяем ключ (уже знаем, что он есть)
     if not MEGANOVA_API_KEY:
-        logger.error("MEGANOVA_API_KEY пустой!")
-        return "🔑 Ошибка: API ключ не найден."
-    
-    logger.info(f"🤖 Запрос к MegaNova: {prompt[:50]}...")
+        logger.error("MEGANOVA_API_KEY не задан")
+        return "🔑 Ошибка: API ключ не настроен."
     
     try:
         import openai
@@ -92,17 +89,15 @@ async def get_ai_response(prompt: str, chat_id: int = None) -> str:
             max_tokens=250
         )
         
-        result = response.choices[0].message.content
-        logger.info(f"✅ Ответ получен")
-        return result
+        return response.choices[0].message.content
         
-except Exception as e:
-    logger.error(f"Ошибка MegaNova: {e}")
-    # Если ошибка из-за лимита
-    if "quota" in str(e).lower() or "rate limit" in str(e).lower() or "429" in str(e):
-        return "🥺 Сегодня я уже наболталась! Завтра снова буду болтать. А пока давай в игру? /crocodile"
-    else:
-        return "😔 Что-то пошло не так. Попробуй позже или напиши /help"
+    except Exception as e:
+        logger.error(f"Ошибка MegaNova: {e}")
+        # Если ошибка из-за лимита
+        if "quota" in str(e).lower() or "rate limit" in str(e).lower() or "429" in str(e):
+            return "🥺 Сегодня я уже наболталась! Завтра снова буду болтать. А пока давай в игру? /crocodile"
+        else:
+            return "😔 Что-то пошло не так. Попробуй позже или напиши /help"
 
 # ================ КАРМА ================
 def add_karma(user_id: int, chat_id: int, value: int = 1):
