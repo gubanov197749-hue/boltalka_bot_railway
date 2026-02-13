@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify
 import requests
 from datetime import datetime
 import asyncio
+import traceback
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -13,6 +14,9 @@ logger = logging.getLogger(__name__)
 from bot import dp, bot
 from aiogram import types
 from config import BOT_TOKEN
+
+# !!! КРИТИЧЕСКИ ВАЖНО: устанавливаем текущий экземпляр бота
+bot.set_current(bot)
 
 # Создаем Flask приложение
 app = Flask(__name__)
@@ -49,8 +53,7 @@ def webhook():
             return 'OK', 200
         except Exception as e:
             logger.error(f"Ошибка обработки вебхука: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(traceback.format_exc())
             return 'Error', 500
     return 'Method not allowed', 405
 
@@ -84,6 +87,7 @@ def set_webhook():
         
         return f"❌ Ошибка: {response.text}", 500
     except Exception as e:
+        logger.error(traceback.format_exc())
         return f"❌ Ошибка: {str(e)}", 500
 
 @app.route('/delete_webhook', methods=['GET'])
