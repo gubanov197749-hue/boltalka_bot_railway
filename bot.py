@@ -1,3 +1,4 @@
+from aiogram import types
 import openai
 from openai.error import AuthenticationError, RateLimitError, APIConnectionError, APIError
 import asyncio
@@ -10,6 +11,12 @@ import time
 
 # Словарь для защиты от спама (время последнего сообщения пользователя)
 last_message_time = {}
+
+from datetime import datetime
+from aiogram import Bot, Dispatcher, types
+from aiogram.contrib.middlewares.logging import LoggingMiddleware
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from config import BOT_TOKEN, MEGANOVA_API_KEY
 
 async def check_crocodile_guess(message: types.Message) -> bool:
     """Проверяет, угадал ли игрок слово в Крокодиле.
@@ -48,12 +55,6 @@ async def check_crocodile_guess(message: types.Message) -> bool:
     
     conn.close()
     return False
-
-from datetime import datetime
-from aiogram import Bot, Dispatcher, types
-from aiogram.contrib.middlewares.logging import LoggingMiddleware
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from config import BOT_TOKEN, MEGANOVA_API_KEY
 
 # ===== ДИАГНОСТИКА =====
 import os
