@@ -346,10 +346,18 @@ async def verify_callback(callback_query: types.CallbackQuery):
 async def ai_chat_handler(message: types.Message):
     """Обработка упоминаний бота"""
     # Получаем username бота (безопасно)
-bot_username = bot._me.username if bot._me else None
-if bot_username and f"@{bot_username}" in message.text.lower():
-    # ... обработка
-        prompt = message.text.replace(f"@{bot.username}", "").strip()
-        if prompt:
-            response = await get_ai_response(prompt, message.chat.id)
-            await message.reply(response)
+    bot_username = bot._me.username if bot._me else None
+    
+    # Не отвечаем на команды
+    if message.text.startswith('/'):
+        return
+    
+    # Если бот упомянут - отвечаем
+    if bot_username and f"@{bot_username}" in message.text.lower():
+        prompt = message.text.replace(f"@{bot_username}", "").strip()
+        response = await get_ai_response(prompt, message.chat.id)
+        await message.reply(response)
+    else:
+        # На любое другое сообщение тоже отвечаем (для теста)
+        response = await get_ai_response(message.text, message.chat.id)
+        await message.reply(response)
