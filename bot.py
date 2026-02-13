@@ -396,5 +396,20 @@ async def ai_chat_handler(message: types.Message):
     if message.text.startswith('/'):
         return
     
-    response = await get_ai_response(message.text, message.chat.id)
-    await message.reply(response)
+    # Получаем username бота
+    bot_user = await bot.me
+    bot_username = bot_user.username if bot_user else None
+    
+    # Проверяем упоминание
+    if bot_username and f"@{bot_username}" in message.text.lower():
+        prompt = message.text.replace(f"@{bot_username}", "").strip()
+        if not prompt:
+            prompt = "Привет!"
+        
+        response = await get_ai_response(prompt, message.chat.id)
+        await message.reply(response)
+    else:
+        # В личке отвечаем всегда
+        if message.chat.type == 'private':
+            response = await get_ai_response(message.text, message.chat.id)
+            await message.reply(response)
