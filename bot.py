@@ -10,6 +10,45 @@ import time
 
 # Словарь для защиты от спама (время последнего сообщения пользователя)
 last_message_time = {}
+
+async def check_crocodile_guess(message: types.Message) -> bool:
+    """Проверяет, угадал ли игрок слово в Крокодиле.
+       Возвращает True, если слово угадано."""
+    
+    conn = sqlite3.connect('bot_database.db')
+    c = conn.cursor()
+    
+    # Ищем активную игру
+    c.execute("SELECT word FROM games WHERE chat_id = ? AND game_type = 'crocodile' AND active = 1", 
+              (message.chat.id,))
+    result = c.fetchone()
+    
+    if not result:
+        conn.close()
+        return False
+    
+    word = result[0]
+    
+    # Сравниваем (регистронезависимо)
+    if message.text.lower().strip() == word.lower():
+        # Ура, угадал!
+        c.execute("UPDATE games SET active = 0 WHERE chat_id = ? AND game_type = 'crocodile'", 
+                  (message.chat.id,))
+        conn.commit()
+        conn.close()
+        
+        # Добавляем карму победителю
+        add_karma(message.from_user.id, message.chat.id, 1)
+        
+        await message.reply(
+            f"🎉 Поздравляю, {message.from_user.first_name}! Ты угадал слово *{word}*!\n"
+            f"⭐ +1 к карме за победу!"
+        )
+        return True
+    
+    conn.close()
+    return False
+
 from datetime import datetime
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
@@ -396,15 +435,20 @@ async def ai_chat_handler(message: types.Message):
     if message.text.startswith('/'):
         return
     
-    # Проверка на активную игру
-    conn = sqlite3.connect('bot_database.db')
-    c = conn.cursor()
-    c.execute("SELECT * FROM games WHERE chat_id = ? AND active = 1", (message.chat.id,))
-    if c.fetchone():
-        conn.close()
-        logger.info(f"🎮 Игра идёт в чате {message.chat.id}, молчим")
-        return
+# Проверка на активную игру
+conn = sqlite3.connect('bot_database.db')
+c = conn.cursor()
+c.execute("SELECT * FROM games WHERE chat_id = ? AND active = 1", (message.chat.id,))
+if c.fetchone():
     conn.close()
+    logger.info(f"🎮 Игра идёт в чате {message.chat.id}, молчим")
+    
+    # Проверяем, не угадал ли кто слово
+    if await check_crocodile_guess(message):
+        return  # Угадал — уже ответили, выходим
+    
+    return
+conn.close()
     
     # Защита от спама (группы)
     if message.chat.type != 'private':
