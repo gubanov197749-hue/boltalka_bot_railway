@@ -742,11 +742,11 @@ async def ai_chat_handler(message: types.Message):
         conn.close()
         logger.info(f"🎮 Игра идёт в чате {message.chat.id}, молчим")
         
-        # Проверяем, не угадал ли кто слово (с подсказками и таймером)
+        # Проверяем, не угадал ли кто слово
         if await check_crocodile_guess(message):
             return
         
-        return
+        return  # ← Выходим, если игра идёт
     conn.close()
     
     # Защита от спама (группы)
@@ -769,7 +769,7 @@ async def ai_chat_handler(message: types.Message):
         is_mentioned = True
         logger.info(f"✅ Упоминание через текст")
     
-     # Проверка через entities
+    # Проверка через entities
     if not is_mentioned and message.entities:
         for entity in message.entities:
             if entity.type == 'mention':
@@ -778,3 +778,30 @@ async def ai_chat_handler(message: types.Message):
                     is_mentioned = True
                     logger.info(f"✅ Упоминание через entities")
                     break
+    
+    logger.info(f"👀 is_mentioned = {is_mentioned}")
+    
+    # Отвечаем если упомянули или это личка
+    if is_mentioned or message.chat.type == 'private':
+        if is_mentioned:
+            # Очищаем от упоминания
+            prompt = message.text
+            if bot_username:
+                prompt = prompt.replace(f"@{bot_username}", "").strip()
+                # Также удаляем через entities
+                if message.entities:
+                    for entity in message.entities:
+                        if entity.type == 'mention':
+                            mention = message.text[entity.offset:entity.offset + entity.length]
+                            prompt = prompt.replace(mention, "").strip()
+        else:
+            prompt = message.text
+        
+        if not prompt:
+            prompt = "Привет!"
+        
+        logger.info(f"💬 Отвечаем на: '{prompt}'")
+        response = await get_ai_response(prompt, message.chat.id)
+        await message.reply(response)
+    else:
+        logger.info(f"⏭️ Нет упоминания и не личка, молчим")
