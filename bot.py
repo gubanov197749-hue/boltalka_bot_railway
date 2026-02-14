@@ -769,7 +769,12 @@ async def ai_chat_handler(message: types.Message):
         is_mentioned = True
         logger.info(f"✅ Упоминание через текст")
     
-    # Проверка через entities
+     # Проверка через entities
     if not is_mentioned and message.entities:
         for entity in message.entities:
-            if entity.type == '
+            if entity.type == 'mention':
+                mentioned = message.text[entity.offset:entity.offset + entity.length]
+                if mentioned.lower() == f"@{bot_username.lower()}":
+                    is_mentioned = True
+                    logger.info(f"✅ Упоминание через entities")
+                    break
