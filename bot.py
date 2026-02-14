@@ -905,5 +905,4 @@ async def start_background_tasks():
     asyncio.create_task(game_timeout_checker())
     asyncio.create_task(weather_checker())
 
-# Запускаем при старте
-asyncio.create_task(start_background_tasks())
+
