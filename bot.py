@@ -85,6 +85,13 @@ async def game_timeout_checker():
 # ================ УТРЕННЯЯ РАССЫЛКА ПОГОДЫ ================
 
 async def send_morning_weather():
+
+@dp.message_handler(commands=['testweather'])
+async def cmd_testweather(message: types.Message):
+    """Тестовая команда для проверки погоды"""
+    await send_morning_weather()
+    await message.reply("✅ Проверка погоды запущена!")
+    
     """Отправляет погоду в группу каждый день в 7 утра"""
     try:
         # ID твоей семейной группы (замени на свой, если нужно)
