@@ -385,31 +385,134 @@ async def cmd_start(message: types.Message):
 /help — все команды"""
     await message.reply(text)
 
+# ================ НОВЫЙ КРАСИВЫЙ HELP ================
 @dp.message_handler(commands=['help'])
 async def cmd_help(message: types.Message):
-    """Обработчик команды /help"""
-    text = """📋 <b>Все команды бота:</b>
+    """Красивый help с кнопками"""
+    
+    # Создаем клавиатуру с разделами
+    keyboard = InlineKeyboardMarkup(row_width=2)
+    
+    keyboard.add(
+        InlineKeyboardButton("🎭 Общение", callback_data="help_chat"),
+        InlineKeyboardButton("🏆 Карма", callback_data="help_karma"),
+        InlineKeyboardButton("🎮 Игры", callback_data="help_games"),
+        InlineKeyboardButton("🔍 Полезное", callback_data="help_utils"),
+        InlineKeyboardButton("📋 Все команды", callback_data="help_all")
+    )
+    
+    text = (
+        "📚 <b>Справка по командам</b>\n\n"
+        "Я умею много всего интересного! Выбери раздел ниже 👇\n\n"
+        "Или просто напиши мне сообщение с @упоминанием — и я отвечу 😊"
+    )
+    
+    await message.reply(text, reply_markup=keyboard, parse_mode="HTML")
 
-🎭 <b>Общение:</b>
-• @бот [вопрос] — спроси меня о чём угодно
-• /fact — случайный интересный факт
-• /story — короткая история от нейросети
+@dp.callback_query_handler(lambda c: c.data == "help_chat")
+async def help_chat(callback_query: types.CallbackQuery):
+    """Раздел Общение"""
+    text = (
+        "🎭 <b>Общение с ботом</b>\n\n"
+        "• <b>@BoltalkaChatBot_bot [вопрос]</b> — спроси меня о чём угодно\n"
+        "• <b>/fact</b> — случайный интересный факт\n"
+        "• <b>/story</b> — короткая история от нейросети\n\n"
+        "Я отвечаю только когда меня упомянули, чтобы не мешать общению в чате 😌"
+    )
+    
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("◀️ Назад", callback_data="help_back")
+    )
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    await callback_query.answer()
 
-🏆 <b>Карма и рейтинги:</b>
-• + — поставить плюсик (ответом на сообщение)
-• /karma — моя карма
-• /top — топ 10 пользователей
+@dp.callback_query_handler(lambda c: c.data == "help_karma")
+async def help_karma(callback_query: types.CallbackQuery):
+    """Раздел Карма"""
+    text = (
+        "🏆 <b>Карма и рейтинги</b>\n\n"
+        "• <b>+</b> — поставь плюсик (ответом на сообщение)\n"
+        "• <b>/karma</b> — узнать свою карму\n"
+        "• <b>/top</b> — топ 10 пользователей чата\n\n"
+        "Чем активнее и добрее человек — тем выше карма! ⭐"
+    )
+    
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("◀️ Назад", callback_data="help_back")
+    )
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    await callback_query.answer()
 
-🎮 <b>Игры:</b>
-• /crocodile — начать игру в Крокодила
-• /duel @user — вызвать на дуэль
-• /couple — выбрать пару дня
-• /addword — добавить слово в игру (только админы)
-• /words — список всех слов
+@dp.callback_query_handler(lambda c: c.data == "help_games")
+async def help_games(callback_query: types.CallbackQuery):
+    """Раздел Игры"""
+    text = (
+        "🎮 <b>Игры</b>\n\n"
+        "• <b>/crocodile</b> — начать игру в Крокодила\n"
+        "• <b>/duel @user</b> — вызвать на дуэль\n"
+        "• <b>/couple</b> — выбрать пару дня\n"
+        "• <b>/addword [слово]</b> — добавить слово в игру (только админы)\n"
+        "• <b>/words</b> — список всех доступных слов\n\n"
+        "В Крокодиле я даю подсказки и сам завершаю игру через 5 минут ⏰"
+    )
+    
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("◀️ Назад", callback_data="help_back")
+    )
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    await callback_query.answer()
 
-🔍 <b>Полезное:</b>
-• /factcheck [утверждение] — проверить факт"""
-    await message.reply(text)
+@dp.callback_query_handler(lambda c: c.data == "help_utils")
+async def help_utils(callback_query: types.CallbackQuery):
+    """Раздел Полезное"""
+    text = (
+        "🔍 <b>Полезные команды</b>\n\n"
+        "• <b>/factcheck [утверждение]</b> — проверить факт через Википедию\n"
+        "• <b>/help</b> — эта справка\n"
+        "• <b>/start</b> — приветствие\n\n"
+        "Я также приветствую новых участников и выдаю +3 кармы за подтверждение ✅"
+    )
+    
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("◀️ Назад", callback_data="help_back")
+    )
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    await callback_query.answer()
+
+@dp.callback_query_handler(lambda c: c.data == "help_all")
+async def help_all(callback_query: types.CallbackQuery):
+    """Все команды одним списком"""
+    text = (
+        "📋 <b>Все команды бота</b>\n\n"
+        "🎭 <b>Общение:</b>\n"
+        "• @бот [вопрос]\n"
+        "• /fact, /story\n\n"
+        "🏆 <b>Карма:</b>\n"
+        "• + (ответом), /karma, /top\n\n"
+        "🎮 <b>Игры:</b>\n"
+        "• /crocodile, /duel @user, /couple\n"
+        "• /addword, /words\n\n"
+        "🔍 <b>Полезное:</b>\n"
+        "• /factcheck, /help, /start"
+    )
+    
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("◀️ Назад", callback_data="help_back")
+    )
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    await callback_query.answer()
+
+@dp.callback_query_handler(lambda c: c.data == "help_back")
+async def help_back(callback_query: types.CallbackQuery):
+    """Возврат в главное меню help"""
+    # Просто вызываем команду /help заново
+    await cmd_help(callback_query.message)
+    await callback_query.answer()
 
 @dp.message_handler(commands=['karma'])
 async def cmd_karma(message: types.Message):
@@ -669,36 +772,4 @@ async def ai_chat_handler(message: types.Message):
     # Проверка через entities
     if not is_mentioned and message.entities:
         for entity in message.entities:
-            if entity.type == 'mention':
-                mentioned = message.text[entity.offset:entity.offset + entity.length]
-                if mentioned.lower() == f"@{bot_username.lower()}":
-                    is_mentioned = True
-                    logger.info(f"✅ Упоминание через entities")
-                    break
-    
-    logger.info(f"👀 is_mentioned = {is_mentioned}")
-    
-    # Отвечаем если упомянули или это личка
-    if is_mentioned or message.chat.type == 'private':
-        if is_mentioned:
-            # Очищаем от упоминания
-            prompt = message.text
-            if bot_username:
-                prompt = prompt.replace(f"@{bot_username}", "").strip()
-                # Также удаляем через entities
-                if message.entities:
-                    for entity in message.entities:
-                        if entity.type == 'mention':
-                            mention = message.text[entity.offset:entity.offset + entity.length]
-                            prompt = prompt.replace(mention, "").strip()
-        else:
-            prompt = message.text
-        
-        if not prompt:
-            prompt = "Привет!"
-        
-        logger.info(f"💬 Отвечаем на: '{prompt}'")
-        response = await get_ai_response(prompt, message.chat.id)
-        await message.reply(response)
-    else:
-        logger.info(f"⏭️ Нет упоминания и не личка, молчим")
+            if entity.type == '
