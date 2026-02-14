@@ -11,24 +11,22 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Импортируем бота
-from bot import dp, bot
+from bot import dp, bot, game_timeout_checker
 from aiogram import types
 from config import BOT_TOKEN
 
-# !!! КРИТИЧЕСКИ ВАЖНО: устанавливаем текущий экземпляр бота
+# !!! ВАЖНО: устанавливаем текущий экземпляр бота
 bot.set_current(bot)
 
-# Фоновые задачи
-from bot import game_timeout_checker
+# Создаем Flask приложение — теперь до декораторов!
+app = Flask(__name__)
 
+# Фоновые задачи
 @app.before_first_request
 async def startup():
     """Запускается при старте приложения"""
     logger.info("🚀 Запуск фоновых задач...")
     asyncio.create_task(game_timeout_checker())
-
-# Создаем Flask приложение
-app = Flask(__name__)
 
 @app.route('/')
 def index():
