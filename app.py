@@ -18,6 +18,15 @@ from config import BOT_TOKEN
 # !!! КРИТИЧЕСКИ ВАЖНО: устанавливаем текущий экземпляр бота
 bot.set_current(bot)
 
+# Фоновые задачи
+from bot import game_timeout_checker
+
+@app.before_first_request
+async def startup():
+    """Запускается при старте приложения"""
+    logger.info("🚀 Запуск фоновых задач...")
+    asyncio.create_task(game_timeout_checker())
+
 # Создаем Flask приложение
 app = Flask(__name__)
 
