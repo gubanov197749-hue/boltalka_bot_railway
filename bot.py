@@ -14,13 +14,10 @@ from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from config import BOT_TOKEN, MEGANOVA_API_KEY
 
-# ================ НОВЫЕ ИМПОРТЫ ДЛЯ ПОГОДЫ ================
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
+# ================ ИМПОРТЫ ДЛЯ ПОГОДЫ ================
 import pytz
 from weather_service import get_weather_with_retry, format_weather_message
-
-# ===========================================================
+# ====================================================
 
 # Словарь для защиты от спама (время последнего сообщения пользователя)
 last_message_time = {}
@@ -82,10 +79,34 @@ async def game_timeout_checker():
         # Проверяем каждые 60 секунд
         await asyncio.sleep(60)
 
+# ================ ФОНОВАЯ ЗАДАЧА ДЛЯ ПОГОДЫ ================
+
+async def weather_checker():
+    """Фоновая задача: проверяет время и отправляет погоду в 23:08 каждый день"""
+    while True:
+        try:
+            # Получаем текущее время по Москве
+            moscow_tz = pytz.timezone('Europe/Moscow')
+            now = datetime.now(moscow_tz)
+            
+            # Проверяем, нужно ли отправлять погоду (23:08)
+            if now.hour == 23 and now.minute == 8:
+                logger.info("🌅 Время 23:08 — запускаем отправку погоды")
+                await send_morning_weather()
+                
+                # Чтобы не отправить повторно в ту же минуту
+                await asyncio.sleep(60)
+            
+        except Exception as e:
+            logger.error(f"Ошибка в weather_checker: {e}")
+        
+        # Проверяем каждые 30 секунд (чтобы точно попасть в минуту)
+        await asyncio.sleep(30)
+
 # =================== УТРЕННЯЯ РАССЫЛКА ПОГОДЫ ===================
 
 async def send_morning_weather():
-    """Отправляет погоду в группу каждый день в 23:05"""
+    """Отправляет погоду в группу каждый день в 23:08"""
     try:
         # ID твоей семейной группы
         GROUP_CHAT_ID = -4722324078
@@ -121,21 +142,6 @@ async def cmd_testweather(message: types.Message):
     """Тестовая команда для проверки погоды"""
     await send_morning_weather()
     await message.reply("✅ Проверка погоды запущена!")
-
-def setup_scheduler():
-    """Настраивает планировщик для утренней рассылки"""
-    scheduler = AsyncIOScheduler(timezone=pytz.timezone('Europe/Moscow'))
-    
-    # Добавляем задачу на каждый день в 7:00 утра
-    scheduler.add_job(
-        send_morning_weather,
-        CronTrigger(hour=23, minute=8, timezone=pytz.timezone('Europe/Moscow')),
-        id="morning_weather",
-        replace_existing=True
-    )
-    
-    scheduler.start()
-    logger.info("⏰ Планировщик утренней погоды запущен (каждый день в 23:08)")
 
 # ================ БАЗА ДАННЫХ ================
 
@@ -891,7 +897,13 @@ async def ai_chat_handler(message: types.Message):
     else:
         logger.info(f"⏭️ Нет причин для ответа, молчим")
 
-# ================ ЗАПУСК ПЛАНИРОВЩИКА ================
+# ================ ЗАПУСК ФОНОВЫХ ЗАДАЧ ================
 
-# Запускаем планировщик утренней погоды
-setup_scheduler()
+async def start_background_tasks():
+    """Запускает все фоновые задачи"""
+    logger.info("🚀 Запуск фоновых задач...")
+    asyncio.create_task(game_timeout_checker())
+    asyncio.create_task(weather_checker())
+
+# Запускаем при старте
+asyncio.create_task(start_background_tasks())
