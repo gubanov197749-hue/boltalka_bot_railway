@@ -8,18 +8,25 @@ import sqlite3
 import aiohttp
 import json
 import time
+from datetime import datetime
+from aiogram import Bot, Dispatcher, types
+from aiogram.contrib.middlewares.logging import LoggingMiddleware
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from config import BOT_TOKEN, MEGANOVA_API_KEY
+
+# ================ НОВЫЕ ИМПОРТЫ ДЛЯ ПОГОДЫ ================
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+import pytz
+from weather_service import get_weather_with_retry, format_weather_message
+
+# ===========================================================
 
 # Словарь для защиты от спама (время последнего сообщения пользователя)
 last_message_time = {}
 
 # Словарь для подсказок (чтобы не спамить)
 last_hint_time = {}
-
-from datetime import datetime
-from aiogram import Bot, Dispatcher, types
-from aiogram.contrib.middlewares.logging import LoggingMiddleware
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from config import BOT_TOKEN, MEGANOVA_API_KEY
 
 # ===== ДИАГНОСТИКА =====
 import os
@@ -31,7 +38,12 @@ print(f"🔥 MEGANOVA_API_KEY = {os.getenv('MEGANOVA_API_KEY')}")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-import asyncio
+# Инициализация бота и диспетчера
+bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
+dp = Dispatcher(bot)
+dp.middleware.setup(LoggingMiddleware())
+
+# ================ ФОНОВЫЕ ЗАДАЧИ ================
 
 async def game_timeout_checker():
     """Фоновая задача: проверяет активные игры и завершает просроченные"""
@@ -70,12 +82,58 @@ async def game_timeout_checker():
         # Проверяем каждые 60 секунд
         await asyncio.sleep(60)
 
-# Инициализация бота и диспетчера
-bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
-dp = Dispatcher(bot)
-dp.middleware.setup(LoggingMiddleware())
+# ================ УТРЕННЯЯ РАССЫЛКА ПОГОДЫ ================
+
+async def send_morning_weather():
+    """Отправляет погоду в группу каждый день в 7 утра"""
+    try:
+        # ID твоей семейной группы (замени на свой, если нужно)
+        GROUP_CHAT_ID = -4722324078  # Из логов: group:-4722324078
+        
+        logger.info("🌅 Запуск утренней рассылки погоды")
+        
+        weather_messages = []
+        
+        for city in ["Славянск-на-Кубани", "Липецк"]:
+            # Используем функцию с повторными попытками
+            status, weather_data = await get_weather_with_retry(city)
+            
+            if status == "success":
+                message = format_weather_message(city, weather_data)
+                weather_messages.append(message)
+                await asyncio.sleep(2)  # Вежливая пауза между городами
+            else:
+                logger.error(f"Не удалось получить погоду для {city} после всех попыток")
+                await bot.send_message(
+                    GROUP_CHAT_ID,
+                    f"🌅 Доброе утро! Не удалось получить погоду для {city}, но день всё равно будет хорошим! ☀️"
+                )
+        
+        # Отправляем успешные прогнозы
+        for msg in weather_messages:
+            await bot.send_message(GROUP_CHAT_ID, msg, parse_mode="Markdown")
+            await asyncio.sleep(1)
+            
+    except Exception as e:
+        logger.error(f"Ошибка в утренней рассылке: {e}")
+
+def setup_scheduler():
+    """Настраивает планировщик для утренней рассылки"""
+    scheduler = AsyncIOScheduler(timezone=pytz.timezone('Europe/Moscow'))
+    
+    # Добавляем задачу на каждый день в 7:00 утра
+    scheduler.add_job(
+        send_morning_weather,
+        CronTrigger(hour=7, minute=0, timezone=pytz.timezone('Europe/Moscow')),
+        id="morning_weather",
+        replace_existing=True
+    )
+    
+    scheduler.start()
+    logger.info("⏰ Планировщик утренней погоды запущен (каждый день в 7:00)")
 
 # ================ БАЗА ДАННЫХ ================
+
 def init_db():
     """Инициализация базы данных SQLite"""
     conn = sqlite3.connect('bot_database.db')
@@ -129,6 +187,7 @@ def init_db():
 init_db()
 
 # ================ ФУНКЦИИ ДЛЯ ИГРОВЫХ СЛОВ ================
+
 def get_random_word():
     """Возвращает случайное слово из базы данных"""
     conn = sqlite3.connect('bot_database.db')
@@ -238,8 +297,6 @@ async def check_crocodile_guess(message: types.Message) -> bool:
     return False
 
 # ================ AI CHAT (MEGANOVA) ================
-import openai
-from openai.error import AuthenticationError, RateLimitError, APIConnectionError, APIError
 
 # Настройка OpenAI-совместимого клиента для MegaNova
 openai.api_key = MEGANOVA_API_KEY
@@ -278,6 +335,7 @@ async def get_ai_response(prompt: str, chat_id: int = None) -> str:
             return "😔 Что-то пошло не так. Попробуй позже или напиши /help"
 
 # ================ КАРМА ================
+
 def add_karma(user_id: int, chat_id: int, value: int = 1):
     """Добавить карму пользователю"""
     conn = sqlite3.connect('bot_database.db')
@@ -312,6 +370,7 @@ def get_top_karma(chat_id: int, limit: int = 10):
     return result
 
 # ================ НОВЫЕ КОМАНДЫ ДЛЯ СЛОВ ================
+
 @dp.message_handler(commands=['addword'])
 async def cmd_addword(message: types.Message):
     """Добавляет новое слово в игру (только для админов)"""
@@ -367,6 +426,7 @@ async def cmd_words(message: types.Message):
     await message.reply(f"📚 Доступные слова ({len(words)} шт.):\n{word_list}")
 
 # ================ ОБРАБОТЧИКИ КОМАНД ================
+
 @dp.message_handler(commands=['start'])
 async def cmd_start(message: types.Message):
     """Обработчик команды /start"""
@@ -386,6 +446,7 @@ async def cmd_start(message: types.Message):
     await message.reply(text)
 
 # ================ НОВЫЙ КРАСИВЫЙ HELP ================
+
 @dp.message_handler(commands=['help'])
 async def cmd_help(message: types.Message):
     """Красивый help с кнопками"""
@@ -729,6 +790,7 @@ async def verify_callback(callback_query: types.CallbackQuery):
     await callback_query.answer()
 
 # ================ ОСНОВНОЙ ОБРАБОТЧИК СООБЩЕНИЙ ================
+
 # Ключевые слова для вызова бота (можно добавлять любые)
 TRIGGER_WORDS = [
     "болталка",
@@ -758,7 +820,7 @@ async def ai_chat_handler(message: types.Message):
         if await check_crocodile_guess(message):
             return
         
-        return  # ← Выходим, если игра идёт
+        return
     conn.close()
     
     # Защита от спама (группы)
@@ -823,3 +885,8 @@ async def ai_chat_handler(message: types.Message):
         await message.reply(response)
     else:
         logger.info(f"⏭️ Нет причин для ответа, молчим")
+
+# ================ ЗАПУСК ПЛАНИРОВЩИКА ================
+
+# Запускаем планировщик утренней погоды
+setup_scheduler()
