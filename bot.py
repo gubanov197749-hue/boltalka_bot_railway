@@ -124,13 +124,13 @@ def setup_scheduler():
     # Добавляем задачу на каждый день в 7:00 утра
     scheduler.add_job(
         send_morning_weather,
-        CronTrigger(hour=22, minute=42, timezone=pytz.timezone('Europe/Moscow')),
+        CronTrigger(hour=22, minute=55, timezone=pytz.timezone('Europe/Moscow')),
         id="morning_weather",
         replace_existing=True
     )
     
     scheduler.start()
-    logger.info("⏰ Планировщик утренней погоды запущен (каждый день в 7:00)")
+    logger.info("⏰ Планировщик утренней погоды запущен (каждый день в 22:55)")
 
 # ================ БАЗА ДАННЫХ ================
 
