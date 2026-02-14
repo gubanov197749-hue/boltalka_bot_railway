@@ -28,10 +28,12 @@ async def start_background_tasks():
     asyncio.create_task(game_timeout_checker())
 
 @app.before_request
-async def before_request():
-    """Выполняется перед каждым запросом — запускаем фоновые задачи при первом запросе"""
+def before_request():
     if not hasattr(app, 'background_started'):
-        await start_background_tasks()
+        # Запускаем фоновые задачи синхронно
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(start_background_tasks())
         app.background_started = True
 
 @app.route('/')
