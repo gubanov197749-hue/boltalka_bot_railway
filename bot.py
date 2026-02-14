@@ -729,6 +729,16 @@ async def verify_callback(callback_query: types.CallbackQuery):
     await callback_query.answer()
 
 # ================ ОСНОВНОЙ ОБРАБОТЧИК СООБЩЕНИЙ ================
+# Ключевые слова для вызова бота (можно добавлять любые)
+TRIGGER_WORDS = [
+    "болталка",
+    "болталочка",
+    "бот",
+    "друг",
+    "помоги",
+    "эй"
+]
+
 @dp.message_handler(content_types=['text'])
 async def ai_chat_handler(message: types.Message):
     if message.text.startswith('/'):
@@ -763,39 +773,45 @@ async def ai_chat_handler(message: types.Message):
     bot_username = bot_user.username if bot_user else None
     logger.info(f"🤖 bot_username = {bot_username}")
     
-    # Проверяем упоминание
-    is_mentioned = False
-    if bot_username and f"@{bot_username}" in message.text.lower():
-        is_mentioned = True
-        logger.info(f"✅ Упоминание через текст")
+    # Проверяем, нужно ли отвечать
+    should_reply = False
     
-    # Проверка через entities
-    if not is_mentioned and message.entities:
+    # 1. Проверка на упоминание через @
+    if bot_username and f"@{bot_username}" in message.text.lower():
+        should_reply = True
+        logger.info(f"✅ Упоминание через @")
+    
+    # 2. Проверка через entities
+    if not should_reply and message.entities:
         for entity in message.entities:
             if entity.type == 'mention':
                 mentioned = message.text[entity.offset:entity.offset + entity.length]
                 if mentioned.lower() == f"@{bot_username.lower()}":
-                    is_mentioned = True
+                    should_reply = True
                     logger.info(f"✅ Упоминание через entities")
                     break
     
-    logger.info(f"👀 is_mentioned = {is_mentioned}")
+    # 3. Проверка на ключевые слова (без @)
+    if not should_reply:
+        text_lower = message.text.lower()
+        for word in TRIGGER_WORDS:
+            if word.lower() in text_lower:
+                should_reply = True
+                logger.info(f"✅ Сработало ключевое слово: '{word}'")
+                break
     
-    # Отвечаем если упомянули или это личка
-    if is_mentioned or message.chat.type == 'private':
-        if is_mentioned:
-            # Очищаем от упоминания
-            prompt = message.text
-            if bot_username:
-                prompt = prompt.replace(f"@{bot_username}", "").strip()
-                # Также удаляем через entities
-                if message.entities:
-                    for entity in message.entities:
-                        if entity.type == 'mention':
-                            mention = message.text[entity.offset:entity.offset + entity.length]
-                            prompt = prompt.replace(mention, "").strip()
-        else:
-            prompt = message.text
+    logger.info(f"👀 should_reply = {should_reply}")
+    
+    # Отвечаем если нужно или это личка
+    if should_reply or message.chat.type == 'private':
+        # Очищаем от упоминания, если оно было
+        prompt = message.text
+        if bot_username:
+            prompt = prompt.replace(f"@{bot_username}", "").strip()
+        
+        # Также удаляем ключевые слова (опционально)
+        for word in TRIGGER_WORDS:
+            prompt = prompt.replace(word, "").strip()
         
         if not prompt:
             prompt = "Привет!"
@@ -804,4 +820,4 @@ async def ai_chat_handler(message: types.Message):
         response = await get_ai_response(prompt, message.chat.id)
         await message.reply(response)
     else:
-        logger.info(f"⏭️ Нет упоминания и не личка, молчим")
+        logger.info(f"⏭️ Нет причин для ответа, молчим")
