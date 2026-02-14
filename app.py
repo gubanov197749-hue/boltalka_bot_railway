@@ -22,13 +22,17 @@ bot.set_current(bot)
 app = Flask(__name__)
 
 # Фоновые задачи
-def start_background_tasks(app):
-    """Запускает фоновые задачи при старте"""
-    with app.app_context():
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.create_task(game_timeout_checker())
-        logger.info("🚀 Фоновые задачи запущены")
+async def start_background_tasks():
+    """Запускает фоновые задачи"""
+    logger.info("🚀 Запуск фоновой задачи game_timeout_checker...")
+    asyncio.create_task(game_timeout_checker())
+
+@app.before_request
+async def before_request():
+    """Выполняется перед каждым запросом — запускаем фоновые задачи при первом запросе"""
+    if not hasattr(app, 'background_started'):
+        await start_background_tasks()
+        app.background_started = True
 
 @app.route('/')
 def index():
@@ -122,9 +126,6 @@ def webhook_info():
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()}), 200
-
-# Запускаем фоновые задачи при старте
-start_background_tasks(app)
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))
