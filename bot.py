@@ -31,6 +31,45 @@ print(f"🔥 MEGANOVA_API_KEY = {os.getenv('MEGANOVA_API_KEY')}")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+import asyncio
+
+async def game_timeout_checker():
+    """Фоновая задача: проверяет активные игры и завершает просроченные"""
+    while True:
+        try:
+            conn = sqlite3.connect('bot_database.db')
+            c = conn.cursor()
+            
+            # Ищем все активные игры старше 5 минут
+            c.execute('''SELECT chat_id, word FROM games 
+                         WHERE game_type = 'crocodile' AND active = 1 
+                         AND datetime(started_at) < datetime('now', '-5 minutes')''')
+            expired_games = c.fetchall()
+            
+            for chat_id, word in expired_games:
+                # Завершаем игру
+                c.execute("UPDATE games SET active = 0 WHERE chat_id = ? AND game_type = 'crocodile'", 
+                          (chat_id,))
+                conn.commit()
+                
+                # Отправляем сообщение в чат
+                try:
+                    await bot.send_message(
+                        chat_id,
+                        f"⏰ Время вышло! Никто не угадал слово *{word}*.\n"
+                        f"Можете начать новую игру: /crocodile"
+                    )
+                except:
+                    pass  # Если не можем отправить — игнорируем
+            
+            conn.close()
+            
+        except Exception as e:
+            logger.error(f"Ошибка в game_timeout_checker: {e}")
+        
+        # Проверяем каждые 60 секунд
+        await asyncio.sleep(60)
+
 # Инициализация бота и диспетчера
 bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
 dp = Dispatcher(bot)
