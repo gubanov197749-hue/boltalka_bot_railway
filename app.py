@@ -18,15 +18,17 @@ from config import BOT_TOKEN
 # !!! ВАЖНО: устанавливаем текущий экземпляр бота
 bot.set_current(bot)
 
-# Создаем Flask приложение — теперь до декораторов!
+# Создаем Flask приложение
 app = Flask(__name__)
 
 # Фоновые задачи
-@app.before_first_request
-async def startup():
-    """Запускается при старте приложения"""
-    logger.info("🚀 Запуск фоновых задач...")
-    asyncio.create_task(game_timeout_checker())
+def start_background_tasks(app):
+    """Запускает фоновые задачи при старте"""
+    with app.app_context():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.create_task(game_timeout_checker())
+        logger.info("🚀 Фоновые задачи запущены")
 
 @app.route('/')
 def index():
@@ -120,6 +122,9 @@ def webhook_info():
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()}), 200
+
+# Запускаем фоновые задачи при старте
+start_background_tasks(app)
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))
