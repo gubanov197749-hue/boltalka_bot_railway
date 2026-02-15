@@ -31,6 +31,9 @@ print(f"🔥 BOT_TOKEN = {os.getenv('BOT_TOKEN')}")
 print(f"🔥 MEGANOVA_API_KEY = {os.getenv('MEGANOVA_API_KEY')}")
 # ========================
 
+# Глобальный список для хранения ссылок на задачи
+BACKGROUND_TASKS = set()
+
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -93,8 +96,8 @@ async def weather_checker():
             logger.info(f"⏰ weather_checker проверяет время: {now.hour}:{now.minute}:{now.second}")
             
             # Проверяем, нужно ли отправлять погоду (с запасом в 10 секунд)
-            target_hour = 20  # УСТАНОВИ СВОЁ ВРЕМЯ
-            target_minute = 59  # УСТАНОВИ СВОЁ ВРЕМЯ
+            target_hour = 21  # УСТАНОВИ СВОЁ ВРЕМЯ
+            target_minute = 8  # УСТАНОВИ СВОЁ ВРЕМЯ
             
             if (now.hour == target_hour and 
                 now.minute == target_minute and 
@@ -909,9 +912,18 @@ async def ai_chat_handler(message: types.Message):
 # ================ ЗАПУСК ФОНОВЫХ ЗАДАЧ ================
 
 async def start_background_tasks():
-    """Запускает все фоновые задачи"""
+    """Запускает все фоновые задачи и сохраняет ссылки на них"""
+    global BACKGROUND_TASKS
     logger.info("🚀 Запуск фоновых задач...")
-    asyncio.create_task(game_timeout_checker())
-    asyncio.create_task(weather_checker())
-
-
+    
+    # Создаем задачи и сохраняем ссылки
+    task1 = asyncio.create_task(game_timeout_checker())
+    task2 = asyncio.create_task(weather_checker())
+    
+    # Добавляем в глобальный список, чтобы сборщик мусора не удалил
+    BACKGROUND_TASKS.add(task1)
+    BACKGROUND_TASKS.add(task2)
+    
+    # Опционально: удаляем из списка, когда задача завершится
+    task1.add_done_callback(BACKGROUND_TASKS.discard)
+    task2.add_done_callback(BACKGROUND_TASKS.discard)
