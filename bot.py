@@ -91,8 +91,8 @@ async def game_timeout_checker():
 async def weather_checker():
     """Фоновая задача: проверяет время и отправляет погоду"""
     logger.info("🔥 weather_checker ЗАПУЩЕН!")
-    target_hour = 21
-    target_minute = 59  # поставь ближайшее время для теста
+    target_hour = 2
+    target_minute = 5  # поставь ближайшее время для теста
 
     while True:
         try:
@@ -111,6 +111,7 @@ async def weather_checker():
         except Exception as e:
             logger.error(f"❌ Ошибка в weather_checker: {e}")
             await asyncio.sleep(5)
+            
 # =================== УТРЕННЯЯ РАССЫЛКА ПОГОДЫ ===================
 
 async def send_morning_weather():
