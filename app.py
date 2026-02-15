@@ -21,7 +21,7 @@ bot.set_current(bot)
 # Создаем Flask приложение
 app = Flask(__name__)
 
-# ================ ПРИНУДИТЕЛЬНЫЙ ЗАПУСК ПРИ СТАРТЕ ================
+# ================ ЕДИНСТВЕННЫЙ ЗАПУСК ФОНОВЫХ ЗАДАЧ ================
 with app.app_context():
     try:
         loop = asyncio.new_event_loop()
@@ -29,21 +29,8 @@ with app.app_context():
         loop.run_until_complete(start_background_tasks())
         logger.info("✅ Фоновые задачи запущены при старте")
     except Exception as e:
-        logger.error(f"❌ Ошибка запуска фоновых задач при старте: {e}")
+        logger.error(f"❌ Ошибка запуска фоновых задач: {e}")
 # ===================================================================
-
-@app.before_request
-def before_request():
-    if not hasattr(app, 'background_started'):
-        try:
-            # Запускаем фоновые задачи (если ещё не запущены)
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(start_background_tasks())
-            app.background_started = True
-            logger.info("✅ Фоновые задачи запущены (before_request)")
-        except Exception as e:
-            logger.error(f"❌ Ошибка запуска фоновых задач в before_request: {e}")
 
 @app.route('/')
 def index():
