@@ -88,10 +88,11 @@ async def game_timeout_checker():
 
 # ================= ФОНОВАЯ ЗАДАЧА ДЛЯ ПОГОДЫ =================
 
-async def weather_checker_loop():
-    """Основной цикл проверки погоды"""
+async def weather_checker():
+    """Фоновая задача: проверяет время и отправляет погоду"""
+    logger.info("🔥 weather_checker ЗАПУЩЕН!")
     target_hour = 23
-    target_minute = 18  # поставь ближайшее время
+    target_minute = 25  # поставь ближайшее время
     counter = 0
 
     while True:
@@ -100,7 +101,9 @@ async def weather_checker_loop():
             moscow_tz = pytz.timezone('Europe/Moscow')
             now = datetime.now(moscow_tz)
             
-            logger.info(f"🔄 weather_checker итерация #{counter}, время {now.hour}:{now.minute}:{now.second}")
+            # Логируем каждый 10-й проход
+            if counter % 10 == 0:
+                logger.info(f"🔄 weather_checker работает, итерация {counter}, время {now.hour}:{now.minute}:{now.second}")
 
             if now.hour == target_hour and now.minute == target_minute:
                 logger.info(f"🎯 ЦЕЛЬ ДОСТИГНУТА! {target_hour}:{target_minute}")
@@ -108,15 +111,9 @@ async def weather_checker_loop():
                 await asyncio.sleep(60)
 
         except Exception as e:
-            logger.error(f"❌ Ошибка: {e}", exc_info=True)
+            logger.error(f"❌ Ошибка: {e}")
         
         await asyncio.sleep(1)
-
-def weather_checker():
-    """Обёртка для запуска цикла"""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(weather_checker_loop())
             
 # =================== УТРЕННЯЯ РАССЫЛКА ПОГОДЫ ===================
 
