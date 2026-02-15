@@ -90,39 +90,40 @@ async def game_timeout_checker():
 
 async def weather_checker():
     """Фоновая задача: проверяет время и отправляет погоду"""
-    logger.info("🔥 weather_checker ЗАПУЩЕН!")
-    target_hour = 22
-    target_minute = 57  # поставь ближайшее время
-    counter = 0
-    
-    # Небольшая задержка перед стартом, чтобы всё инициализировалось
-    await asyncio.sleep(2)
-
-    while True:
-        counter += 1
-        try:
-            # Пробуем получить время
-            moscow_tz = pytz.timezone('Europe/Moscow')
-            now = datetime.now(moscow_tz)
-            
-            # Логируем каждый 10-й проход или первую секунду минуты
-            if counter % 10 == 0 or now.second < 2:
-                logger.info(f"✅ weather_checker работает (итерация {counter}, время {now.hour}:{now.minute}:{now.second})")
-
-            # Проверяем, нужно ли отправлять погоду
-            if now.hour == target_hour and now.minute == target_minute:
-                logger.info(f"🎯 ЦЕЛЬ ДОСТИГНУТА! {target_hour}:{target_minute}")
-                await send_morning_weather()
-                await asyncio.sleep(60 - now.second + 1)
-
-        except Exception as e:
-            logger.error(f"❌ Ошибка в weather_checker: {e}", exc_info=True)
-            # При ошибке ждём 5 секунд и продолжаем
-            await asyncio.sleep(5)
-            continue
+    try:
+        logger.info("🔥 weather_checker ЗАПУЩЕН!")
+        target_hour = 23
+        target_minute = 0  # поставь ближайшее время
+        counter = 0
         
-        # Обязательная пауза
-        await asyncio.sleep(1)
+        # Небольшая задержка перед стартом
+        await asyncio.sleep(2)
+        logger.info("✅ weather_checker начал цикл")
+
+        while True:
+            counter += 1
+            try:
+                # Получаем время
+                moscow_tz = pytz.timezone('Europe/Moscow')
+                now = datetime.now(moscow_tz)
+                
+                # Логируем каждый 5-й проход
+                if counter % 5 == 0:
+                    logger.info(f"🔄 weather_checker тик #{counter}, время {now.hour}:{now.minute}:{now.second}")
+
+                # Проверяем цель
+                if now.hour == target_hour and now.minute == target_minute:
+                    logger.info(f"🎯 ЦЕЛЬ {target_hour}:{target_minute} ДОСТИГНУТА!")
+                    await send_morning_weather()
+                    await asyncio.sleep(60 - now.second + 1)
+
+            except Exception as e:
+                logger.error(f"❌ Ошибка внутри цикла: {e}", exc_info=True)
+            
+            await asyncio.sleep(1)
+
+    except Exception as e:
+        logger.error(f"💥 КАТАСТРОФА weather_checker: {e}", exc_info=True)
             
 # =================== УТРЕННЯЯ РАССЫЛКА ПОГОДЫ ===================
 
