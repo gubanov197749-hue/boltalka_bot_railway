@@ -91,8 +91,8 @@ async def game_timeout_checker():
 async def weather_checker():
     """Фоновая задача: проверяет время и отправляет погоду"""
     logger.info("🔥 weather_checker ЗАПУЩЕН!")
-    target_hour = 2
-    target_minute = 5  # поставь ближайшее время для теста
+    target_hour = 22
+    target_minute = 35
 
     while True:
         try:
@@ -101,12 +101,14 @@ async def weather_checker():
 
             logger.info(f"⏰ weather_checker проверяет: {now.hour}:{now.minute}:{now.second}")
 
+            # Проверяем всю минуту (а не только первую секунду)
             if now.hour == target_hour and now.minute == target_minute:
                 logger.info(f"🌅 ВРЕМЯ {target_hour}:{target_minute} — ОТПРАВЛЯЕМ ПОГОДУ!")
                 await send_morning_weather()
-                await asyncio.sleep(60 - now.second)
-
-            await asyncio.sleep(1)
+                # Спим до конца минуты + 1 секунду, чтобы не отправить повторно
+                await asyncio.sleep(60 - now.second + 1)
+            else:
+                await asyncio.sleep(1)
 
         except Exception as e:
             logger.error(f"❌ Ошибка в weather_checker: {e}")
@@ -909,8 +911,8 @@ async def ai_chat_handler(message: types.Message):
 # ================ ЗАПУСК ФОНОВЫХ ЗАДАЧ ================
 
 async def start_background_tasks():
-    """Запускает все фоновые задачи ТОЛЬКО ОДИН РАЗ"""
-    global _tasks_started
+    """Запускает все фоновые задачи ТОЛЬКО ОДИН РАЗ и сохраняет ссылки"""
+    global _tasks_started, BACKGROUND_TASKS
     if _tasks_started:
         logger.info("⏭️ Фоновые задачи уже запущены, пропускаем")
         return
@@ -918,6 +920,16 @@ async def start_background_tasks():
     _tasks_started = True
     logger.info("🚀 Запуск фоновых задач...")
 
-    # Создаем задачи
-    asyncio.create_task(game_timeout_checker())
-    asyncio.create_task(weather_checker())
+    # Создаем задачи и СОХРАНЯЕМ ссылки
+    task1 = asyncio.create_task(game_timeout_checker())
+    task2 = asyncio.create_task(weather_checker())
+    
+    # Добавляем в глобальный список (сильная ссылка)
+    BACKGROUND_TASKS.add(task1)
+    BACKGROUND_TASKS.add(task2)
+    
+    # Автоматически удаляем из списка при завершении
+    task1.add_done_callback(BACKGROUND_TASKS.discard)
+    task2.add_done_callback(BACKGROUND_TASKS.discard)
+    
+    logger.info(f"✅ Запущено {len(BACKGROUND_TASKS)} фоновых задач")
