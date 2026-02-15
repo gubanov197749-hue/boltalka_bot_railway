@@ -100,7 +100,7 @@ async def weather_checker():
             
             # Проверяем, нужно ли отправлять погоду (с запасом в 10 секунд)
             target_hour = 21  # УСТАНОВИ СВОЁ ВРЕМЯ
-            target_minute = 8  # УСТАНОВИ СВОЁ ВРЕМЯ
+            target_minute = 22  # УСТАНОВИ СВОЁ ВРЕМЯ
             
             if (now.hour == target_hour and 
                 now.minute == target_minute and 
