@@ -34,6 +34,9 @@ print(f"🔥 MEGANOVA_API_KEY = {os.getenv('MEGANOVA_API_KEY')}")
 # Глобальный список для хранения ссылок на задачи
 BACKGROUND_TASKS = set()
 
+# Флаг, что задачи уже запущены
+_tasks_started = False
+
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -912,18 +915,15 @@ async def ai_chat_handler(message: types.Message):
 # ================ ЗАПУСК ФОНОВЫХ ЗАДАЧ ================
 
 async def start_background_tasks():
-    """Запускает все фоновые задачи и сохраняет ссылки на них"""
-    global BACKGROUND_TASKS
+    """Запускает все фоновые задачи ТОЛЬКО ОДИН РАЗ"""
+    global _tasks_started
+    if _tasks_started:
+        logger.info("⏭️ Фоновые задачи уже запущены, пропускаем")
+        return
+    
+    _tasks_started = True
     logger.info("🚀 Запуск фоновых задач...")
     
-    # Создаем задачи и сохраняем ссылки
-    task1 = asyncio.create_task(game_timeout_checker())
-    task2 = asyncio.create_task(weather_checker())
-    
-    # Добавляем в глобальный список, чтобы сборщик мусора не удалил
-    BACKGROUND_TASKS.add(task1)
-    BACKGROUND_TASKS.add(task2)
-    
-    # Опционально: удаляем из списка, когда задача завершится
-    task1.add_done_callback(BACKGROUND_TASKS.discard)
-    task2.add_done_callback(BACKGROUND_TASKS.discard)
+    # Создаем задачи
+    asyncio.create_task(game_timeout_checker())
+    asyncio.create_task(weather_checker())
