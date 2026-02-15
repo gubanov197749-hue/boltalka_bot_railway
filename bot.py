@@ -92,14 +92,16 @@ async def weather_checker():
     """Фоновая задача: проверяет время и отправляет погоду"""
     logger.info("🔥 weather_checker ЗАПУЩЕН!")
     target_hour = 22
-    target_minute = 36  # поставь ближайшее время для теста
+    target_minute = 40  # поставь ближайшее время для теста
+    counter = 0
 
     while True:
         try:
             moscow_tz = pytz.timezone('Europe/Moscow')
             now = datetime.now(moscow_tz)
-
-            logger.info(f"⏰ weather_checker проверяет: {now.hour}:{now.minute}:{now.second}")
+            
+            counter += 1
+            logger.info(f"⏰ weather_checker проверка #{counter}: {now.hour}:{now.minute}:{now.second}")
 
             if now.hour == target_hour and now.minute == target_minute:
                 logger.info(f"🌅 ВРЕМЯ {target_hour}:{target_minute} — ОТПРАВЛЯЕМ ПОГОДУ!")
@@ -109,7 +111,6 @@ async def weather_checker():
         except Exception as e:
             logger.error(f"❌ Ошибка в weather_checker: {e}")
 
-        # ОБЯЗАТЕЛЬНАЯ пауза перед следующим витком цикла
         await asyncio.sleep(1)
             
 # =================== УТРЕННЯЯ РАССЫЛКА ПОГОДЫ ===================
