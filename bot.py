@@ -93,11 +93,9 @@ async def weather_checker():
     try:
         logger.info("🔥 weather_checker ЗАПУЩЕН!")
         target_hour = 23
-        target_minute = 0  # поставь ближайшее время
+        target_minute = 5  # поставь ближайшее время
         counter = 0
-        
-        # Небольшая задержка перед стартом
-        await asyncio.sleep(2)
+
         logger.info("✅ weather_checker начал цикл")
 
         while True:
