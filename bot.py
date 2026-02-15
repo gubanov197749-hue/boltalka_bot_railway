@@ -92,7 +92,7 @@ async def weather_checker():
     """Фоновая задача: проверяет время и отправляет погоду"""
     logger.info("🔥 weather_checker ЗАПУЩЕН!")
     target_hour = 22
-    target_minute = 35
+    target_minute = 36  # поставь ближайшее время для теста
 
     while True:
         try:
@@ -101,18 +101,16 @@ async def weather_checker():
 
             logger.info(f"⏰ weather_checker проверяет: {now.hour}:{now.minute}:{now.second}")
 
-            # Проверяем всю минуту (а не только первую секунду)
             if now.hour == target_hour and now.minute == target_minute:
                 logger.info(f"🌅 ВРЕМЯ {target_hour}:{target_minute} — ОТПРАВЛЯЕМ ПОГОДУ!")
                 await send_morning_weather()
-                # Спим до конца минуты + 1 секунду, чтобы не отправить повторно
                 await asyncio.sleep(60 - now.second + 1)
-            else:
-                await asyncio.sleep(1)
 
         except Exception as e:
             logger.error(f"❌ Ошибка в weather_checker: {e}")
-            await asyncio.sleep(5)
+
+        # ОБЯЗАТЕЛЬНАЯ пауза перед следующим витком цикла
+        await asyncio.sleep(1)
             
 # =================== УТРЕННЯЯ РАССЫЛКА ПОГОДЫ ===================
 
