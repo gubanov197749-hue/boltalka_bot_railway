@@ -91,28 +91,27 @@ async def game_timeout_checker():
 async def weather_checker():
     """Фоновая задача: проверяет время и отправляет погоду"""
     target_hour = 21
-    target_minute = 33  # поставь ближайшее время для теста
-    
+    target_minute = 45  # поставь ближайшее время для теста
+
     while True:
         try:
             moscow_tz = pytz.timezone('Europe/Moscow')
             now = datetime.now(moscow_tz)
-            
+
             # Проверяем каждую секунду (для точности)
             if now.hour == target_hour and now.minute == target_minute:
-                logger.info(f"🌅 Время {target_hour}:{target_minute} — запускаем отправку погоды")
+                logger.info(f"🌅 Время {target_hour}:{target_minute} – запускаем отправку погоды")
                 await send_morning_weather()
-                
+
                 # Спим до конца минуты, чтобы не отправить повторно
                 await asyncio.sleep(60 - now.second)
-            
+
             # Ждём 1 секунду перед следующей проверкой
             await asyncio.sleep(1)
-            
+
         except Exception as e:
             logger.error(f"❌ Ошибка в weather_checker: {e}")
             await asyncio.sleep(5)
-
 # =================== УТРЕННЯЯ РАССЫЛКА ПОГОДЫ ===================
 
 async def send_morning_weather():
@@ -915,10 +914,10 @@ async def start_background_tasks():
     if _tasks_started:
         logger.info("⏭️ Фоновые задачи уже запущены, пропускаем")
         return
-    
+
     _tasks_started = True
     logger.info("🚀 Запуск фоновых задач...")
-    
+
     # Создаем задачи
     asyncio.create_task(game_timeout_checker())
     asyncio.create_task(weather_checker())
