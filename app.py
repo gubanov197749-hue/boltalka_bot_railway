@@ -10,8 +10,8 @@ import traceback
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Импортируем бота
-from bot import dp, bot, game_timeout_checker, weather_checker  # ← добавил weather_checker
+# Импортируем бота — ТОЛЬКО ОДНУ функцию для запуска задач
+from bot import dp, bot, start_background_tasks
 from aiogram import types
 from config import BOT_TOKEN
 
@@ -20,14 +20,6 @@ bot.set_current(bot)
 
 # Создаем Flask приложение
 app = Flask(__name__)
-
-# Фоновые задачи
-async def start_background_tasks():
-    """Запускает все фоновые задачи"""
-    logger.info("🚀 Запуск фоновых задач...")
-    # Создаем задачи, но не ждём их завершения
-    asyncio.create_task(game_timeout_checker())
-    asyncio.create_task(weather_checker())
 
 @app.before_request
 def before_request():
