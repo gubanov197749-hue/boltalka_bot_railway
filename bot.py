@@ -93,35 +93,33 @@ async def weather_checker():
     try:
         logger.info("🔥 weather_checker ЗАПУЩЕН!")
         target_hour = 23
-        target_minute = 5  # поставь ближайшее время
+        target_minute = 10  # поставь ближайшее время
         counter = 0
 
         logger.info("✅ weather_checker начал цикл")
 
         while True:
-            counter += 1
             try:
-                # Получаем время
+                counter += 1
                 moscow_tz = pytz.timezone('Europe/Moscow')
                 now = datetime.now(moscow_tz)
                 
-                # Логируем каждый 5-й проход
-                if counter % 5 == 0:
-                    logger.info(f"🔄 weather_checker тик #{counter}, время {now.hour}:{now.minute}:{now.second}")
+                # Логируем каждый проход (для отладки)
+                logger.info(f"🔄 weather_checker проход #{counter}, время {now.hour}:{now.minute}:{now.second}")
 
-                # Проверяем цель
                 if now.hour == target_hour and now.minute == target_minute:
-                    logger.info(f"🎯 ЦЕЛЬ {target_hour}:{target_minute} ДОСТИГНУТА!")
+                    logger.info(f"🎯 ЦЕЛЬ ДОСТИГНУТА! Отправляю погоду")
                     await send_morning_weather()
-                    await asyncio.sleep(60 - now.second + 1)
+                    await asyncio.sleep(60)
 
             except Exception as e:
-                logger.error(f"❌ Ошибка внутри цикла: {e}", exc_info=True)
+                logger.error(f"❌ Ошибка в цикле: {e}", exc_info=True)
             
+            # Пауза перед следующим проходом
             await asyncio.sleep(1)
 
     except Exception as e:
-        logger.error(f"💥 КАТАСТРОФА weather_checker: {e}", exc_info=True)
+        logger.error(f"💥 Критическая ошибка: {e}", exc_info=True)
             
 # =================== УТРЕННЯЯ РАССЫЛКА ПОГОДЫ ===================
 
