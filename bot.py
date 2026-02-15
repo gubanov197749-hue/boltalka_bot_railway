@@ -936,13 +936,13 @@ async def start_background_tasks():
     # Создаем задачи и СОХРАНЯЕМ ссылки
     task1 = asyncio.create_task(game_timeout_checker())
     task2 = asyncio.create_task(weather_checker())
-    
+
     # Добавляем в глобальный список (сильная ссылка)
     BACKGROUND_TASKS.add(task1)
     BACKGROUND_TASKS.add(task2)
-    
+
     # Автоматически удаляем из списка при завершении
     task1.add_done_callback(BACKGROUND_TASKS.discard)
     task2.add_done_callback(BACKGROUND_TASKS.discard)
-    
+
     logger.info(f"✅ Запущено {len(BACKGROUND_TASKS)} фоновых задач")
