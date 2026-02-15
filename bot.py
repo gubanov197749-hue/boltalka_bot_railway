@@ -90,23 +90,22 @@ async def game_timeout_checker():
 
 async def weather_checker():
     """Фоновая задача: проверяет время и отправляет погоду"""
+    logger.info("🔥 weather_checker ЗАПУЩЕН!")
     target_hour = 21
-    target_minute = 45  # поставь ближайшее время для теста
+    target_minute = 50  # поставь ближайшее время для теста
 
     while True:
         try:
             moscow_tz = pytz.timezone('Europe/Moscow')
             now = datetime.now(moscow_tz)
+            
+            logger.info(f"⏰ weather_checker проверяет: {now.hour}:{now.minute}:{now.second}")
 
-            # Проверяем каждую секунду (для точности)
             if now.hour == target_hour and now.minute == target_minute:
-                logger.info(f"🌅 Время {target_hour}:{target_minute} – запускаем отправку погоды")
+                logger.info(f"🌅 ВРЕМЯ {target_hour}:{target_minute} — ОТПРАВЛЯЕМ ПОГОДУ!")
                 await send_morning_weather()
-
-                # Спим до конца минуты, чтобы не отправить повторно
                 await asyncio.sleep(60 - now.second)
 
-            # Ждём 1 секунду перед следующей проверкой
             await asyncio.sleep(1)
 
         except Exception as e:
