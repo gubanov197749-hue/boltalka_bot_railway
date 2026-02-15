@@ -90,36 +90,42 @@ async def game_timeout_checker():
 
 async def weather_checker():
     """Фоновая задача: проверяет время и отправляет погоду"""
+    logger.info("🔥 weather_checker ЗАПУЩЕН!")
+    
+    # Добавим проверку импорта pytz
     try:
-        logger.info("🔥 weather_checker ЗАПУЩЕН!")
-        target_hour = 23
-        target_minute = 10  # поставь ближайшее время
-        counter = 0
+        logger.info(f"✅ pytz импортирован: {pytz.__version__}")
+    except:
+        logger.error("❌ pytz не импортирован!")
+        return
+    
+    target_hour = 23
+    target_minute = 15  # поставь ближайшее время
+    counter = 0
 
-        logger.info("✅ weather_checker начал цикл")
+    logger.info("⏳ Вход в бесконечный цикл...")
 
-        while True:
-            try:
-                counter += 1
-                moscow_tz = pytz.timezone('Europe/Moscow')
-                now = datetime.now(moscow_tz)
-                
-                # Логируем каждый проход (для отладки)
-                logger.info(f"🔄 weather_checker проход #{counter}, время {now.hour}:{now.minute}:{now.second}")
-
-                if now.hour == target_hour and now.minute == target_minute:
-                    logger.info(f"🎯 ЦЕЛЬ ДОСТИГНУТА! Отправляю погоду")
-                    await send_morning_weather()
-                    await asyncio.sleep(60)
-
-            except Exception as e:
-                logger.error(f"❌ Ошибка в цикле: {e}", exc_info=True)
+    while True:
+        try:
+            counter += 1
+            logger.info(f"🔄 Начало итерации #{counter}")
             
-            # Пауза перед следующим проходом
+            moscow_tz = pytz.timezone('Europe/Moscow')
+            now = datetime.now(moscow_tz)
+            
+            logger.info(f"⏰ Текущее время: {now.hour}:{now.minute}:{now.second}")
+
+            if now.hour == target_hour and now.minute == target_minute:
+                logger.info(f"🎯 ЦЕЛЬ {target_hour}:{target_minute} ДОСТИГНУТА!")
+                await send_morning_weather()
+                await asyncio.sleep(60)
+
+            logger.info(f"✅ Итерация #{counter} завершена, жду 1 секунду")
             await asyncio.sleep(1)
 
-    except Exception as e:
-        logger.error(f"💥 Критическая ошибка: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(f"❌ Ошибка в итерации #{counter}: {e}", exc_info=True)
+            await asyncio.sleep(5)
             
 # =================== УТРЕННЯЯ РАССЫЛКА ПОГОДЫ ===================
 
