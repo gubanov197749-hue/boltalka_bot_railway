@@ -10,7 +10,7 @@ import traceback
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Импортируем бота — ТОЛЬКО ОДНУ функцию для запуска задач
+# Импортируем бота — только одну функцию для запуска задач
 from bot import dp, bot, start_background_tasks
 from aiogram import types
 from config import BOT_TOKEN
@@ -21,15 +21,29 @@ bot.set_current(bot)
 # Создаем Flask приложение
 app = Flask(__name__)
 
-@app.before_request
-def before_request():
-    if not hasattr(app, 'background_started'):
-        # Запускаем фоновые задачи в существующем event loop
+# ================ ПРИНУДИТЕЛЬНЫЙ ЗАПУСК ПРИ СТАРТЕ ================
+with app.app_context():
+    try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(start_background_tasks())
-        app.background_started = True
-        logger.info("✅ Фоновые задачи запущены")
+        logger.info("✅ Фоновые задачи запущены при старте")
+    except Exception as e:
+        logger.error(f"❌ Ошибка запуска фоновых задач при старте: {e}")
+# ===================================================================
+
+@app.before_request
+def before_request():
+    if not hasattr(app, 'background_started'):
+        try:
+            # Запускаем фоновые задачи (если ещё не запущены)
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(start_background_tasks())
+            app.background_started = True
+            logger.info("✅ Фоновые задачи запущены (before_request)")
+        except Exception as e:
+            logger.error(f"❌ Ошибка запуска фоновых задач в before_request: {e}")
 
 @app.route('/')
 def index():
