@@ -89,16 +89,18 @@ async def weather_checker():
             moscow_tz = pytz.timezone('Europe/Moscow')
             now = datetime.now(moscow_tz)
             
-            # Проверяем, нужно ли отправлять погоду
-            if now.hour == 20 and now.minute == 22:
-                logger.info("🌅 Время 20:22 — запускаем отправку погоды")
+            logger.info(f"⏰ weather_checker проверяет время: {now.hour}:{now.minute}")
+            
+            # Проверяем, нужно ли отправлять погоду (укажи своё время)
+            if now.hour == 20 and now.minute == 33:
+                logger.info("🌅 Время 20:33 — запускаем отправку погоды")
                 await send_morning_weather()
                 
                 # Чтобы не отправить повторно в ту же минуту
                 await asyncio.sleep(60)
             
         except Exception as e:
-            logger.error(f"Ошибка в weather_checker: {e}")
+            logger.error(f"❌ Ошибка в weather_checker: {e}")
         
         # Проверяем каждые 30 секунд
         await asyncio.sleep(30)
