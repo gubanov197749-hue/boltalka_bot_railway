@@ -5,12 +5,13 @@ import requests
 from datetime import datetime
 import asyncio
 import traceback
+import threading
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Импортируем бота — только одну функцию для запуска задач
+# Импортируем бота
 from bot import dp, bot, start_background_tasks
 from aiogram import types
 from config import BOT_TOKEN
@@ -21,15 +22,21 @@ bot.set_current(bot)
 # Создаем Flask приложение
 app = Flask(__name__)
 
-# ================ ЕДИНСТВЕННЫЙ ЗАПУСК ФОНОВЫХ ЗАДАЧ ================
-with app.app_context():
+# ================ ЗАПУСК ФОНОВЫХ ЗАДАЧ В ОТДЕЛЬНОМ ПОТОКЕ ================
+def run_background_tasks():
+    """Запускает фоновые задачи в отдельном потоке со своим event loop"""
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(start_background_tasks())
-        logger.info("✅ Фоновые задачи запущены при старте")
+        logger.info("✅ Фоновые задачи запущены в отдельном потоке")
     except Exception as e:
         logger.error(f"❌ Ошибка запуска фоновых задач: {e}")
+
+# Запускаем в отдельном потоке, чтобы не мешать Flask
+thread = threading.Thread(target=run_background_tasks, daemon=True)
+thread.start()
+logger.info("🚀 Поток для фоновых задач запущен")
 # ===================================================================
 
 @app.route('/')
