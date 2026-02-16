@@ -15,7 +15,6 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from config import BOT_TOKEN, MEGANOVA_API_KEY
 
 # ================ ИМПОРТЫ ДЛЯ ПОГОДЫ ================
-import pytz
 from weather_service import get_weather_with_retry, format_weather_message
 # ====================================================
 
@@ -85,45 +84,15 @@ async def game_timeout_checker():
         # Проверяем каждые 60 секунд
         await asyncio.sleep(60)
 
-
-# ================= ФОНОВАЯ ЗАДАЧА ДЛЯ ПОГОДЫ =================
-
-async def weather_checker():
-    """Фоновая задача: проверяет время и отправляет погоду"""
-    logger.info("🔥 weather_checker ЗАПУЩЕН!")
-    target_hour = 23
-    target_minute = 25  # поставь ближайшее время
-    counter = 0
-
-    while True:
-        try:
-            counter += 1
-            moscow_tz = pytz.timezone('Europe/Moscow')
-            now = datetime.now(moscow_tz)
-            
-            # Логируем каждый 10-й проход
-            if counter % 10 == 0:
-                logger.info(f"🔄 weather_checker работает, итерация {counter}, время {now.hour}:{now.minute}:{now.second}")
-
-            if now.hour == target_hour and now.minute == target_minute:
-                logger.info(f"🎯 ЦЕЛЬ ДОСТИГНУТА! {target_hour}:{target_minute}")
-                await send_morning_weather()
-                await asyncio.sleep(60)
-
-        except Exception as e:
-            logger.error(f"❌ Ошибка: {e}")
-        
-        await asyncio.sleep(1)
-            
 # =================== УТРЕННЯЯ РАССЫЛКА ПОГОДЫ ===================
 
 async def send_morning_weather():
-    """Отправляет погоду в группу каждый день в 23:08"""
+    """Отправляет погоду в группу"""
     try:
         # ID твоей семейной группы
         GROUP_CHAT_ID = -4722324078
         
-        logger.info("🌅 Запуск утренней рассылки погоды")
+        logger.info("🌅 Запуск рассылки погоды")
         
         weather_messages = []
         
@@ -146,14 +115,14 @@ async def send_morning_weather():
             await asyncio.sleep(1)
             
     except Exception as e:
-        logger.error(f"Ошибка в утренней рассылке: {e}")
+        logger.error(f"Ошибка в рассылке погоды: {e}")
 
-# ============== ТЕСТОВАЯ КОМАНДА ==============
+# ============== КОМАНДА ДЛЯ РУЧНОЙ ОТПРАВКИ ПОГОДЫ ==============
 @dp.message_handler(commands=['testweather'])
 async def cmd_testweather(message: types.Message):
-    """Тестовая команда для проверки погоды"""
+    """Команда для ручной отправки погоды"""
     await send_morning_weather()
-    await message.reply("✅ Проверка погоды запущена!")
+    await message.reply("✅ Погода отправлена!")
 
 # ================ БАЗА ДАННЫХ ================
 
@@ -923,14 +892,11 @@ async def start_background_tasks():
 
     # Создаем задачи и СОХРАНЯЕМ ссылки
     task1 = asyncio.create_task(game_timeout_checker())
-    task2 = asyncio.create_task(weather_checker())
 
     # Добавляем в глобальный список (сильная ссылка)
     BACKGROUND_TASKS.add(task1)
-    BACKGROUND_TASKS.add(task2)
 
     # Автоматически удаляем из списка при завершении
     task1.add_done_callback(BACKGROUND_TASKS.discard)
-    task2.add_done_callback(BACKGROUND_TASKS.discard)
 
     logger.info(f"✅ Запущено {len(BACKGROUND_TASKS)} фоновых задач")
