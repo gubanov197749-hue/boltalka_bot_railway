@@ -1050,7 +1050,7 @@ async def cmd_factcheck(message: types.Message):
         await message.reply("Напиши утверждение для проверки, например:\n/factcheck Правда ли, что банан — это ягода?")
         return
     
-    # ПРАВИЛЬНЫЙ URL для API Рувики
+    # Правильный URL для API Рувики
     search_url = "https://ru.ruwiki.ru/w/api.php"
     params = {
         "action": "query",
@@ -1060,20 +1060,25 @@ async def cmd_factcheck(message: types.Message):
         "utf8": 1
     }
     
+    # КРИТИЧЕСКИ ВАЖНО: добавляем User-Agent
+    headers = {
+        "User-Agent": "BoltalkaBot/1.0 (https://t.me/BoltalkaChatBot_bot; bot for family chat)"
+    }
+    
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.get(search_url, params=params) as response:
-                # Проверяем, что ответ действительно в формате JSON
+            async with session.get(search_url, params=params, headers=headers) as response:
                 if response.status == 200:
                     data = await response.json()
                     if data.get("query") and data["query"].get("search"):
                         title = data["query"]["search"][0]["title"]
-                        # Ссылка тоже должна вести на Рувики
+                        # Ссылка ведёт на Рувики
                         result = f"🔍 <b>Нашёл информацию!</b>\n\nВот что говорит Рувики:\n<a href='https://ru.ruwiki.ru/wiki/{title.replace(' ', '_')}'>{title}</a>"
                     else:
                         result = "🤔 Не могу найти точную информацию. Возможно, это миф или малоизвестный факт."
                 else:
-                    logger.error(f"Ruwiki API error: Status {response.status}")
+                    # Логируем ошибку для отладки
+                    logger.error(f"Ruwiki API error: Status {response.status}, Headers: {response.headers}")
                     result = f"❌ Ошибка при обращении к Рувики. Статус: {response.status}"
         except Exception as e:
             logger.error(f"Fact check error: {e}")
