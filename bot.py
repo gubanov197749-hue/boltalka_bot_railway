@@ -159,7 +159,7 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS game_words
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   word TEXT UNIQUE,
-                  description TEXT,  # поле для описания
+                  description TEXT,
                   added_by INTEGER,
                   added_at TIMESTAMP)''')
     
