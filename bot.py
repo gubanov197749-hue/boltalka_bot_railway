@@ -477,6 +477,58 @@ async def cmd_words(message: types.Message):
         parse_mode="HTML"
     )
 
+# ================ MEME API (HUMOR API) ================
+
+HUMOR_API_KEY = "7a10744d91b342e389367ddb520ea689"
+
+async def get_random_meme():
+    """Получает случайный мем из Humor API"""
+    try:
+        url = f"https://api.humorapi.com/memes/random?api-key={HUMOR_API_KEY}"
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return {
+                        "success": True,
+                        "url": data.get("url"),
+                        "title": data.get("title", "😂 Случайный мем"),
+                        "nsfw": data.get("nsfw", False)
+                    }
+                else:
+                    logger.error(f"Humor API error: {response.status}")
+                    return {"success": False, "error": f"API error {response.status}"}
+                    
+    except Exception as e:
+        logger.error(f"Error fetching meme: {e}")
+        return {"success": False, "error": str(e)}
+
+@dp.message_handler(commands=['meme'])
+async def cmd_meme(message: types.Message):
+    """Отправляет случайный мем"""
+    
+    # Сразу показываем, что бот работает
+    status_msg = await message.reply("🔍 Ищу свежий мем...")
+    
+    # Получаем мем
+    result = await get_random_meme()
+    
+    if result["success"]:
+        # Удаляем сообщение о поиске
+        await status_msg.delete()
+        
+        # Отправляем картинку
+        await message.reply_photo(
+            photo=result["url"],
+            caption=f"😂 {result['title']}\n\n/meme — ещё мем"
+        )
+    else:
+        await status_msg.edit_text(
+            "😔 Не удалось найти мем. Попробуй позже.\n"
+            "А пока можешь сыграть в /crocodile"
+        )
+
 # ================ ОБРАБОТЧИКИ КОМАНД ================
 
 @dp.message_handler(commands=['start'])
@@ -512,6 +564,7 @@ async def cmd_help(message: types.Message):
         InlineKeyboardButton("🎮 Игры", callback_data="help_games"),
         InlineKeyboardButton("🔍 Полезное", callback_data="help_utils"),
         InlineKeyboardButton("🌤️ Погода", callback_data="help_weather"),
+        InlineKeyboardButton("😂 Мемы", callback_data="help_meme"),
         InlineKeyboardButton("📋 Все команды", callback_data="help_all")
     )
     
@@ -614,6 +667,22 @@ async def help_weather(callback_query: types.CallbackQuery):
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback_query.answer()
 
+@dp.callback_query_handler(lambda c: c.data == "help_meme")
+async def help_meme(callback_query: types.CallbackQuery):
+    """Раздел Мемы"""
+    text = (
+        "😂 <b>Мемы и юмор</b>\n\n"
+        "• <b>/meme</b> — случайный мем (из Humor API)\n\n"
+        "Бесплатный лимит: 100 запросов в день. Мемы безопасны для всей семьи!"
+    )
+    
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("◀️ Назад", callback_data="help_back")
+    )
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    await callback_query.answer()
+
 @dp.callback_query_handler(lambda c: c.data == "help_all")
 async def help_all(callback_query: types.CallbackQuery):
     """Все команды одним списком"""
@@ -630,6 +699,8 @@ async def help_all(callback_query: types.CallbackQuery):
         "• /words\n\n"
         "🌤️ <b>Погода:</b>\n"
         "• /testweather\n\n"
+        "😂 <b>Мемы:</b>\n"
+        "• /meme\n\n"
         "🔍 <b>Полезное:</b>\n"
         "• /factcheck, /help, /start"
     )
