@@ -187,6 +187,17 @@ def init_db():
                   added_by INTEGER,
                   added_at TIMESTAMP)''')
     
+    # ===== НОВАЯ ТАБЛИЦА ДЛЯ СТАТИСТИКИ КРОКОДИЛА =====
+    c.execute('''CREATE TABLE IF NOT EXISTS game_stats
+                 (user_id INTEGER,
+                  chat_id INTEGER,
+                  games_played INTEGER DEFAULT 0,
+                  games_won INTEGER DEFAULT 0,
+                  total_guesses INTEGER DEFAULT 0,
+                  last_played TIMESTAMP,
+                  PRIMARY KEY (user_id, chat_id))''')
+    # ==================================================
+    
     conn.commit()
     
     # Добавляем начальные слова и описания, если таблица пуста
@@ -279,6 +290,44 @@ def get_hint(guess: str, target: str) -> str:
     else:
         return "⬇️ Слово длиннее загаданного"
 
+# ================ НОВАЯ ФУНКЦИЯ ДЛЯ СТАТИСТИКИ ================
+def update_game_stats(user_id: int, chat_id: int, won: bool = False):
+    """Обновляет статистику игрока в Крокодиле"""
+    conn = sqlite3.connect('bot_database.db')
+    c = conn.cursor()
+    
+    # Проверяем, есть ли запись
+    c.execute("SELECT * FROM game_stats WHERE user_id = ? AND chat_id = ?", (user_id, chat_id))
+    if c.fetchone():
+        # Обновляем существующую
+        if won:
+            c.execute('''UPDATE game_stats 
+                         SET games_played = games_played + 1,
+                             games_won = games_won + 1,
+                             last_played = ?
+                         WHERE user_id = ? AND chat_id = ?''',
+                      (datetime.now(), user_id, chat_id))
+        else:
+            c.execute('''UPDATE game_stats 
+                         SET games_played = games_played + 1,
+                             last_played = ?
+                         WHERE user_id = ? AND chat_id = ?''',
+                      (datetime.now(), user_id, chat_id))
+    else:
+        # Создаём новую запись
+        if won:
+            c.execute('''INSERT INTO game_stats (user_id, chat_id, games_played, games_won, last_played)
+                         VALUES (?, ?, 1, 1, ?)''',
+                      (user_id, chat_id, datetime.now()))
+        else:
+            c.execute('''INSERT INTO game_stats (user_id, chat_id, games_played, games_won, last_played)
+                         VALUES (?, ?, 1, 0, ?)''',
+                      (user_id, chat_id, datetime.now()))
+    
+    conn.commit()
+    conn.close()
+# =============================================================
+
 async def check_crocodile_guess(message: types.Message) -> bool:
     """Проверяет, угадал ли игрок слово. Даёт подсказки и следит за временем."""
     
@@ -322,6 +371,10 @@ async def check_crocodile_guess(message: types.Message) -> bool:
         
         # Добавляем карму победителю
         add_karma(message.from_user.id, message.chat.id, 1)
+        
+        # ===== ОБНОВЛЯЕМ СТАТИСТИКУ =====
+        update_game_stats(message.from_user.id, message.chat.id, won=True)
+        # ================================
         
         # Получаем описание слова
         desc_conn = sqlite3.connect('bot_database.db')
@@ -557,6 +610,47 @@ async def cmd_meme(message: types.Message):
             "А пока можешь сыграть в /crocodile"
         )
 
+# ================ НОВАЯ КОМАНДА ТОП КРОКОДИЛА ================
+@dp.message_handler(commands=['croctop'])
+async def cmd_croctop(message: types.Message):
+    """Показывает топ игроков в Крокодила в этом чате"""
+    
+    conn = sqlite3.connect('bot_database.db')
+    c = conn.cursor()
+    
+    # Получаем топ-10 по победам
+    c.execute('''SELECT user_id, games_won, games_played 
+                 FROM game_stats 
+                 WHERE chat_id = ? 
+                 ORDER BY games_won DESC 
+                 LIMIT 10''', (message.chat.id,))
+    top_players = c.fetchall()
+    conn.close()
+    
+    if not top_players:
+        await message.reply(
+            "📊 В этом чате ещё нет статистики игр в Крокодила.\n"
+            "Сыграйте первую игру: /crocodile"
+        )
+        return
+    
+    # Формируем сообщение
+    text = "🏆 <b>Топ игроков в Крокодила</b>\n\n"
+    
+    for i, (user_id, wins, played) in enumerate(top_players, 1):
+        try:
+            user = await bot.get_chat_member(message.chat.id, user_id)
+            name = user.user.first_name
+        except:
+            name = f"Игрок {user_id}"
+        
+        win_rate = (wins / played * 100) if played > 0 else 0
+        medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "▫️"
+        text += f"{medal} {name} — {wins} побед из {played} игр ({win_rate:.1f}%)\n"
+    
+    await message.reply(text, parse_mode="HTML")
+# =============================================================
+
 # ================ ОБРАБОТЧИКИ КОМАНД ================
 
 @dp.message_handler(commands=['start'])
@@ -590,6 +684,7 @@ async def cmd_help(message: types.Message):
         InlineKeyboardButton("🎭 Общение", callback_data="help_chat"),
         InlineKeyboardButton("🏆 Карма", callback_data="help_karma"),
         InlineKeyboardButton("🎮 Игры", callback_data="help_games"),
+        InlineKeyboardButton("📊 Топ Крокодила", callback_data="help_croctop"),
         InlineKeyboardButton("🔍 Полезное", callback_data="help_utils"),
         InlineKeyboardButton("🌤️ Погода", callback_data="help_weather"),
         InlineKeyboardButton("😂 Мемы", callback_data="help_meme"),
@@ -651,6 +746,25 @@ async def help_games(callback_query: types.CallbackQuery):
         "• <b>/addword слово | описание</b> — добавить слово в игру (только админы)\n"
         "• <b>/words</b> — список всех доступных слов\n\n"
         "В Крокодиле я даю подсказки, сам завершаю игру через 5 минут, а во время угадывания не блокирую игроков ⏰"
+    )
+    
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("◀️ Назад", callback_data="help_back")
+    )
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    await callback_query.answer()
+
+@dp.callback_query_handler(lambda c: c.data == "help_croctop")
+async def help_croctop(callback_query: types.CallbackQuery):
+    """Раздел Топ Крокодила"""
+    text = (
+        "📊 <b>Статистика Крокодила</b>\n\n"
+        "• <b>/croctop</b> — топ-10 игроков в этом чате\n\n"
+        "Статистика считается автоматически:\n"
+        "• победы\n"
+        "• количество сыгранных игр\n"
+        "• процент побед"
     )
     
     keyboard = InlineKeyboardMarkup().add(
@@ -724,7 +838,8 @@ async def help_all(callback_query: types.CallbackQuery):
         "🎮 <b>Игры:</b>\n"
         "• /crocodile, /duel @user, /couple\n"
         "• /addword [слово | описание]\n"
-        "• /words\n\n"
+        "• /words\n"
+        "• /croctop\n\n"
         "🌤️ <b>Погода:</b>\n"
         "• /testweather\n\n"
         "😂 <b>Мемы:</b>\n"
