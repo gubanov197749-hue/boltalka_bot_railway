@@ -1050,8 +1050,8 @@ async def cmd_factcheck(message: types.Message):
         await message.reply("Напиши утверждение для проверки, например:\n/factcheck Правда ли, что банан — это ягода?")
         return
     
-    # Правильный URL для API Рувики
-    search_url = "https://ru.ruwiki.ru/w/api.php"
+    # Используем data-эндпоинт Рувики (стабильнее)
+    search_url = "https://data.ruwiki.ru/w/api.php"
     params = {
         "action": "query",
         "list": "search",
@@ -1060,9 +1060,10 @@ async def cmd_factcheck(message: types.Message):
         "utf8": 1
     }
     
-    # КРИТИЧЕСКИ ВАЖНО: добавляем User-Agent
+    # Правильные заголовки (как требует MediaWiki)
     headers = {
-        "User-Agent": "BoltalkaBot/1.0 (https://t.me/BoltalkaChatBot_bot; bot for family chat)"
+        "User-Agent": "BoltalkaBot/1.0 (Telegram bot for family chat; https://t.me/BoltalkaChatBot_bot)",
+        "Accept": "application/json"
     }
     
     async with aiohttp.ClientSession() as session:
@@ -1072,13 +1073,15 @@ async def cmd_factcheck(message: types.Message):
                     data = await response.json()
                     if data.get("query") and data["query"].get("search"):
                         title = data["query"]["search"][0]["title"]
-                        # Ссылка ведёт на Рувики
+                        # Ссылка на основную Рувики
                         result = f"🔍 <b>Нашёл информацию!</b>\n\nВот что говорит Рувики:\n<a href='https://ru.ruwiki.ru/wiki/{title.replace(' ', '_')}'>{title}</a>"
                     else:
                         result = "🤔 Не могу найти точную информацию. Возможно, это миф или малоизвестный факт."
+                elif response.status == 403:
+                    # Дополнительная диагностика
+                    logger.error(f"Ruwiki 403: Headers={response.headers}")
+                    result = "❌ Рувики временно недоступна. Попробуй позже или используй другой источник."
                 else:
-                    # Логируем ошибку для отладки
-                    logger.error(f"Ruwiki API error: Status {response.status}, Headers: {response.headers}")
                     result = f"❌ Ошибка при обращении к Рувики. Статус: {response.status}"
         except Exception as e:
             logger.error(f"Fact check error: {e}")
