@@ -155,31 +155,51 @@ def init_db():
                  (chat_id INTEGER, user1_id INTEGER, user2_id INTEGER, 
                   date TEXT)''')
     
-    # Таблица слов для игры
+    # Таблица слов для игры с описанием
     c.execute('''CREATE TABLE IF NOT EXISTS game_words
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   word TEXT UNIQUE,
+                  description TEXT,  # поле для описания
                   added_by INTEGER,
                   added_at TIMESTAMP)''')
     
     conn.commit()
     
-    # Добавляем начальные слова, если таблица пуста
+    # Добавляем начальные слова и описания, если таблица пуста
     c.execute("SELECT COUNT(*) FROM game_words")
     count = c.fetchone()[0]
     if count == 0:
-        default_words = ["крокодил", "слон", "робот", "пицца", "самолёт", 
-                         "кофе", "гитара", "радуга", "космос", "шоколад",
-                         "интернет", "дружба", "солнце", "море", "поезд",
-                         "телефон", "компьютер", "книга", "цветок", "дождь"]
-        for word in default_words:
+        default_words = {
+            "крокодил": "зелёное зубастое животное, которое живёт в реках и любит плавать",
+            "слон": "огромное серое животное с длинным хоботом и большими ушами",
+            "робот": "механическое устройство, которое может выполнять команды человека",
+            "пицца": "итальянское блюдо: круглая лепёшка с томатным соусом и сыром",
+            "самолёт": "летательный аппарат с крыльями, который перевозит людей и грузы",
+            "кофе": "ароматный напиток из зёрен, бодрит по утрам",
+            "гитара": "музыкальный инструмент с шестью струнами и грифом",
+            "радуга": "разноцветная дуга на небе после дождя",
+            "космос": "бесконечное пространство со звёздами и планетами за пределами Земли",
+            "шоколад": "сладкое лакомство из какао-бобов, бывает молочным и горьким",
+            "интернет": "глобальная сеть, которая соединяет компьютеры по всему миру",
+            "дружба": "близкие отношения между людьми, основанные на доверии и взаимопомощи",
+            "солнце": "звезда, которая даёт нам свет и тепло",
+            "море": "огромное солёное водное пространство",
+            "поезд": "транспортное средство из вагонов, которое движется по рельсам",
+            "телефон": "устройство для связи с людьми на расстоянии",
+            "компьютер": "электронная машина для работы, игр и выхода в интернет",
+            "книга": "печатное издание с текстом и картинками",
+            "цветок": "растение с красивыми лепестками и приятным запахом",
+            "дождь": "атмосферные осадки в виде капель воды"
+        }
+        
+        for word, description in default_words.items():
             try:
-                c.execute("INSERT INTO game_words (word, added_by, added_at) VALUES (?, ?, ?)",
-                          (word, 0, datetime.now()))  # added_by = 0 значит служебное
+                c.execute("INSERT INTO game_words (word, description, added_by, added_at) VALUES (?, ?, ?, ?)",
+                          (word, description, 0, datetime.now()))
             except:
                 pass
         conn.commit()
-        logger.info("Добавлены начальные слова для игры")
+        logger.info("Добавлены начальные слова для игры с описаниями")
     
     conn.close()
     logger.info("База данных инициализирована")
@@ -189,19 +209,19 @@ init_db()
 
 # ================ ФУНКЦИИ ДЛЯ ИГРОВЫХ СЛОВ ================
 
-def get_random_word():
-    """Возвращает случайное слово из базы данных"""
+def get_random_word_with_description():
+    """Возвращает случайное слово и его описание из базы"""
     conn = sqlite3.connect('bot_database.db')
     c = conn.cursor()
-    c.execute("SELECT word FROM game_words ORDER BY RANDOM() LIMIT 1")
+    c.execute("SELECT word, description FROM game_words ORDER BY RANDOM() LIMIT 1")
     result = c.fetchone()
     conn.close()
     
     if result:
-        return result[0]
+        return result[0], result[1]  # слово, описание
     else:
-        # Если слов нет — возвращаем слово по умолчанию
-        return "крокодил"
+        # Запасной вариант
+        return "крокодил", "зелёное зубастое животное, которое живёт в реках"
 
 async def is_user_admin(message: types.Message) -> bool:
     """Проверяет, является ли пользователь администратором чата"""
@@ -279,10 +299,25 @@ async def check_crocodile_guess(message: types.Message) -> bool:
         # Добавляем карму победителю
         add_karma(message.from_user.id, message.chat.id, 1)
         
-        await message.reply(
-            f"🎉 Поздравляю, {message.from_user.first_name}! Ты угадал слово *{word}*!\n"
-            f"⭐ +1 к карме за победу!"
-        )
+        # Получаем описание слова
+        desc_conn = sqlite3.connect('bot_database.db')
+        desc_c = desc_conn.cursor()
+        desc_c.execute("SELECT description FROM game_words WHERE word = ?", (word,))
+        desc_result = desc_c.fetchone()
+        desc_conn.close()
+        
+        description = desc_result[0] if desc_result else ""
+        
+        if description:
+            await message.reply(
+                f"🎉 Поздравляю, {message.from_user.first_name}! Ты угадал слово *{word}*!\n\n📖 <b>Значение:</b> {description}\n\n⭐ +1 к карме за победу!",
+                parse_mode="HTML"
+            )
+        else:
+            await message.reply(
+                f"🎉 Поздравляю, {message.from_user.first_name}! Ты угадал слово *{word}*!\n\n⭐ +1 к карме за победу!",
+                parse_mode="HTML"
+            )
         return True
     
     # Если не угадал — даём подсказку (но не чаще раза в 30 секунд)
@@ -374,37 +409,46 @@ def get_top_karma(chat_id: int, limit: int = 10):
 
 @dp.message_handler(commands=['addword'])
 async def cmd_addword(message: types.Message):
-    """Добавляет новое слово в игру (только для админов)"""
+    """Добавляет новое слово и его описание в игру"""
     
     # Проверяем, является ли пользователь админом
     if not await is_user_admin(message):
         await message.reply("❌ Только администраторы могут добавлять слова")
         return
     
-    # Проверяем, есть ли текст после команды
+    # Разбираем аргументы: слово | описание
     parts = message.text.split(maxsplit=1)
-    if len(parts) < 2:
-        await message.reply("❌ Напиши слово после команды, например:\n/addword самолёт")
+    if len(parts) < 2 or '|' not in parts[1]:
+        await message.reply(
+            "❌ Формат: /addword слово | описание\n"
+            "Например: /addword айсберг | огромная ледяная глыба, плавающая в океане"
+        )
         return
     
-    new_word = parts[1].strip().lower()
+    # Извлекаем слово и описание
+    word_part, desc_part = parts[1].split('|', 1)
+    new_word = word_part.strip().lower()
+    description = desc_part.strip()
     
-    # Проверяем длину
+    # Проверки длины
     if len(new_word) < 3:
         await message.reply("❌ Слово должно быть длиннее 2 букв")
         return
     if len(new_word) > 20:
         await message.reply("❌ Слово слишком длинное (максимум 20 букв)")
         return
+    if len(description) < 5:
+        await message.reply("❌ Описание слишком короткое (минимум 5 символов)")
+        return
     
     conn = sqlite3.connect('bot_database.db')
     c = conn.cursor()
     
     try:
-        c.execute("INSERT INTO game_words (word, added_by, added_at) VALUES (?, ?, ?)",
-                  (new_word, message.from_user.id, datetime.now()))
+        c.execute("INSERT INTO game_words (word, description, added_by, added_at) VALUES (?, ?, ?, ?)",
+                  (new_word, description, message.from_user.id, datetime.now()))
         conn.commit()
-        await message.reply(f"✅ Слово «{new_word}» добавлено в игру!")
+        await message.reply(f"✅ Слово «{new_word}» с описанием добавлено в игру!")
     except sqlite3.IntegrityError:
         await message.reply(f"⚠️ Слово «{new_word}» уже есть в списке")
     finally:
@@ -415,7 +459,7 @@ async def cmd_words(message: types.Message):
     """Показывает все доступные слова"""
     conn = sqlite3.connect('bot_database.db')
     c = conn.cursor()
-    c.execute("SELECT word FROM game_words ORDER BY word")
+    c.execute("SELECT word, description FROM game_words ORDER BY word")
     words = c.fetchall()
     conn.close()
     
@@ -423,8 +467,15 @@ async def cmd_words(message: types.Message):
         await message.reply("📭 Список слов пока пуст. Добавь через /addword")
         return
     
-    word_list = "\n".join([f"• {w[0]}" for w in words])
-    await message.reply(f"📚 Доступные слова ({len(words)} шт.):\n{word_list}")
+    # Формируем список слов с описаниями
+    word_list = []
+    for w, desc in words:
+        word_list.append(f"• {w} — _{desc[:30]}..._")
+    
+    await message.reply(
+        f"📚 <b>Доступные слова ({len(words)} шт.):</b>\n" + "\n".join(word_list),
+        parse_mode="HTML"
+    )
 
 # ================ ОБРАБОТЧИКИ КОМАНД ================
 
@@ -460,6 +511,7 @@ async def cmd_help(message: types.Message):
         InlineKeyboardButton("🏆 Карма", callback_data="help_karma"),
         InlineKeyboardButton("🎮 Игры", callback_data="help_games"),
         InlineKeyboardButton("🔍 Полезное", callback_data="help_utils"),
+        InlineKeyboardButton("🌤️ Погода", callback_data="help_weather"),
         InlineKeyboardButton("📋 Все команды", callback_data="help_all")
     )
     
@@ -512,12 +564,12 @@ async def help_games(callback_query: types.CallbackQuery):
     """Раздел Игры"""
     text = (
         "🎮 <b>Игры</b>\n\n"
-        "• <b>/crocodile</b> — начать игру в Крокодила\n"
+        "• <b>/crocodile</b> — начать игру в Крокодила (с кнопкой подсказки!)\n"
         "• <b>/duel @user</b> — вызвать на дуэль\n"
         "• <b>/couple</b> — выбрать пару дня\n"
-        "• <b>/addword [слово]</b> — добавить слово в игру (только админы)\n"
+        "• <b>/addword слово | описание</b> — добавить слово в игру (только админы)\n"
         "• <b>/words</b> — список всех доступных слов\n\n"
-        "В Крокодиле я даю подсказки и сам завершаю игру через 5 минут ⏰"
+        "В Крокодиле я даю подсказки, сам завершаю игру через 5 минут, а во время угадывания не блокирую игроков ⏰"
     )
     
     keyboard = InlineKeyboardMarkup().add(
@@ -545,6 +597,23 @@ async def help_utils(callback_query: types.CallbackQuery):
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback_query.answer()
 
+@dp.callback_query_handler(lambda c: c.data == "help_weather")
+async def help_weather(callback_query: types.CallbackQuery):
+    """Раздел Погода"""
+    text = (
+        "🌤️ <b>Погода</b>\n\n"
+        "• <b>/testweather</b> — показать погоду в Славянске-на-Кубани и Липецке\n\n"
+        "👉 Если команда вызвана в группе — погода уйдёт в группу\n"
+        "👉 Если в личке — погода придёт лично тебе"
+    )
+    
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("◀️ Назад", callback_data="help_back")
+    )
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    await callback_query.answer()
+
 @dp.callback_query_handler(lambda c: c.data == "help_all")
 async def help_all(callback_query: types.CallbackQuery):
     """Все команды одним списком"""
@@ -557,7 +626,10 @@ async def help_all(callback_query: types.CallbackQuery):
         "• + (ответом), /karma, /top\n\n"
         "🎮 <b>Игры:</b>\n"
         "• /crocodile, /duel @user, /couple\n"
-        "• /addword, /words\n\n"
+        "• /addword [слово | описание]\n"
+        "• /words\n\n"
+        "🌤️ <b>Погода:</b>\n"
+        "• /testweather\n\n"
         "🔍 <b>Полезное:</b>\n"
         "• /factcheck, /help, /start"
     )
@@ -572,9 +644,77 @@ async def help_all(callback_query: types.CallbackQuery):
 @dp.callback_query_handler(lambda c: c.data == "help_back")
 async def help_back(callback_query: types.CallbackQuery):
     """Возврат в главное меню help"""
-    # Просто вызываем команду /help заново
     await cmd_help(callback_query.message)
     await callback_query.answer()
+
+# ================ КОМАНДА КРОКОДИЛ С ПОДСКАЗКОЙ ================
+
+@dp.message_handler(commands=['crocodile'])
+async def cmd_crocodile(message: types.Message):
+    """Игра в Крокодила с кнопкой подсказки"""
+    conn = sqlite3.connect('bot_database.db')
+    c = conn.cursor()
+    
+    # Проверяем, не идёт ли уже игра
+    c.execute("SELECT * FROM games WHERE chat_id = ? AND active = 1", 
+              (message.chat.id,))
+    if c.fetchone():
+        await message.reply("В чате уже идёт игра! 🎮")
+        conn.close()
+        return
+    
+    # Получаем случайное слово и его описание из базы
+    word, description = get_random_word_with_description()
+    
+    # Сохраняем игру (слово и время начала)
+    c.execute("INSERT INTO games (chat_id, game_type, active, word, started_at) VALUES (?, ?, ?, ?, ?)",
+              (message.chat.id, "crocodile", 1, word, datetime.now()))
+    conn.commit()
+    conn.close()
+    
+    # Создаём кнопку подсказки
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("🔍 Подсказка", callback_data=f"hint_{word}")
+    )
+    
+    await message.reply(
+        f"🎮 <b>Крокодил!</b>\n"
+        f"Я загадал слово. Твоя задача — объяснить его другим участникам, не называя само слово.\n\n"
+        f"<i>Слово из {len(word)} букв</i>\n\n"
+        f"Если совсем сложно — нажми кнопку подсказки 👇",
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+
+# ================ ОБРАБОТЧИК КНОПКИ ПОДСКАЗКИ ================
+
+@dp.callback_query_handler(lambda c: c.data and c.data.startswith('hint_'))
+async def process_hint(callback_query: types.CallbackQuery):
+    """Обработчик кнопки подсказки"""
+    word = callback_query.data.replace('hint_', '')
+    
+    # Проверяем, что игра ещё идёт
+    conn = sqlite3.connect('bot_database.db')
+    c = conn.cursor()
+    c.execute("SELECT * FROM games WHERE chat_id = ? AND active = 1", 
+              (callback_query.message.chat.id,))
+    if not c.fetchone():
+        await callback_query.answer("Игра уже закончилась!", show_alert=True)
+        conn.close()
+        return
+    
+    # Получаем описание слова из базы
+    c.execute("SELECT description FROM game_words WHERE word = ?", (word,))
+    result = c.fetchone()
+    conn.close()
+    
+    description = result[0] if result else "У этого слова нет подсказки 😅"
+    
+    # Отвечаем (уведомление появится у всех в чате)
+    await callback_query.message.reply(f"🔍 <b>Подсказка:</b> {description}", parse_mode="HTML")
+    await callback_query.answer()
+
+# ================ ОСТАЛЬНЫЕ ОБРАБОТЧИКИ КОМАНД ================
 
 @dp.message_handler(commands=['karma'])
 async def cmd_karma(message: types.Message):
@@ -627,34 +767,6 @@ async def cmd_story(message: types.Message):
     prompt = "Напиши очень короткую смешную историю из жизни, 2-3 предложения"
     story = await get_ai_response(prompt, message.chat.id)
     await message.reply(story)
-
-@dp.message_handler(commands=['crocodile'])
-async def cmd_crocodile(message: types.Message):
-    """Игра в Крокодила"""
-    conn = sqlite3.connect('bot_database.db')
-    c = conn.cursor()
-    
-    # Проверяем, не идёт ли уже игра
-    c.execute("SELECT * FROM games WHERE chat_id = ? AND active = 1", 
-              (message.chat.id,))
-    if c.fetchone():
-        await message.reply("В чате уже идёт игра! 🎮")
-        conn.close()
-        return
-    
-    # Получаем случайное слово из базы
-    word = get_random_word()
-    
-    c.execute("INSERT INTO games (chat_id, game_type, active, word, started_at) VALUES (?, ?, ?, ?, ?)",
-              (message.chat.id, "crocodile", 1, word, datetime.now()))
-    conn.commit()
-    conn.close()
-    
-    await message.reply(
-        f"🎮 <b>Крокодил!</b>\n"
-        f"Я загадал слово. Твоя задача — объяснить его другим участникам, не называя само слово.\n"
-        f"<i>Слово из {len(word)} букв</i>"
-    )
 
 @dp.message_handler(commands=['duel'])
 async def cmd_duel(message: types.Message):
@@ -813,18 +925,17 @@ async def ai_chat_handler(message: types.Message):
     conn = sqlite3.connect('bot_database.db')
     c = conn.cursor()
     c.execute("SELECT * FROM games WHERE chat_id = ? AND active = 1", (message.chat.id,))
-    if c.fetchone():
-        conn.close()
-        logger.info(f"🎮 Игра идёт в чате {message.chat.id}, молчим")
-        
+    game_active = c.fetchone() is not None
+    conn.close()
+    
+    if game_active:
+        logger.info(f"🎮 Игра идёт, антиспам отключён")
         # Проверяем, не угадал ли кто слово
         if await check_crocodile_guess(message):
             return
-        
-        return
-    conn.close()
+        return  # Во время игры не обрабатываем AI и не применяем антиспам
     
-    # Защита от спама (группы)
+    # Защита от спама (только вне игры)
     if message.chat.type != 'private':
         user_id = message.from_user.id
         now = time.time()
