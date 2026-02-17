@@ -1050,8 +1050,8 @@ async def cmd_factcheck(message: types.Message):
         await message.reply("Напиши утверждение для проверки, например:\n/factcheck Правда ли, что банан — это ягода?")
         return
     
-    # Используем API Рувики
-    search_url = "https://ruwiki.ru/w/api.php"
+    # ПРАВИЛЬНЫЙ URL для API Рувики
+    search_url = "https://ru.ruwiki.ru/w/api.php"
     params = {
         "action": "query",
         "list": "search",
@@ -1064,18 +1064,17 @@ async def cmd_factcheck(message: types.Message):
         try:
             async with session.get(search_url, params=params) as response:
                 # Проверяем, что ответ действительно в формате JSON
-                if response.status == 200 and 'application/json' in response.headers.get('Content-Type', ''):
+                if response.status == 200:
                     data = await response.json()
-                    if data["query"]["search"]:
+                    if data.get("query") and data["query"].get("search"):
                         title = data["query"]["search"][0]["title"]
                         # Ссылка тоже должна вести на Рувики
-                        result = f"🔍 <b>Нашёл информацию!</b>\n\nВот что говорит Рувики:\n<a href='https://ruwiki.ru/wiki/{title.replace(' ', '_')}'>{title}</a>"
+                        result = f"🔍 <b>Нашёл информацию!</b>\n\nВот что говорит Рувики:\n<a href='https://ru.ruwiki.ru/wiki/{title.replace(' ', '_')}'>{title}</a>"
                     else:
                         result = "🤔 Не могу найти точную информацию. Возможно, это миф или малоизвестный факт."
                 else:
-                    # Если ответ не JSON, логируем и выдаём ошибку
-                    logger.error(f"Ruwiki API error: Status {response.status}, Content-Type: {response.headers.get('Content-Type')}")
-                    result = "❌ Ошибка при обращении к Рувики. Сервер временно недоступен."
+                    logger.error(f"Ruwiki API error: Status {response.status}")
+                    result = f"❌ Ошибка при обращении к Рувики. Статус: {response.status}"
         except Exception as e:
             logger.error(f"Fact check error: {e}")
             result = f"❌ Ошибка при проверке: {e}"
