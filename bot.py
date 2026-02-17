@@ -1042,52 +1042,132 @@ async def cmd_couple(message: types.Message):
         f"Поздравляем! 🎉"
     )
 
+# Словарь для временного хранения вопросов пользователей
+user_questions = {}
+
 @dp.message_handler(commands=['factcheck'])
 async def cmd_factcheck(message: types.Message):
-    """Проверка фактов через Рувики"""
+    """Запускает режим проверки фактов"""
     claim = message.text.replace("/factcheck", "").strip()
-    if not claim:
-        await message.reply("Напиши утверждение для проверки, например:\n/factcheck Правда ли, что банан — это ягода?")
+    
+    # Если пользователь сразу написал вопрос
+    if claim:
+        await process_factcheck(message, claim)
         return
     
-    # Используем data-эндпоинт Рувики (стабильнее)
+    # Если команда без вопроса — просим ввести
+    user_questions[message.from_user.id] = True
+    await message.reply(
+        "🔍 <b>Режим проверки фактов</b>\n\n"
+        "Напиши свой вопрос или утверждение, и я найду информацию в Рувики.\n\n"
+        "Например:\n"
+        "• банан это ягода\n"
+        "• столица Франции\n"
+        "• кто написал война и мир\n\n"
+        "✏️ <i>Жду твой вопрос...</i>",
+        parse_mode="HTML"
+    )
+
+@dp.message_handler(lambda message: message.from_user.id in user_questions and not message.text.startswith('/'))
+async def handle_factcheck_question(message: types.Message):
+    """Обрабатывает вопрос, введённый после команды /factcheck"""
+    # Удаляем пользователя из режима ожидания
+    del user_questions[message.from_user.id]
+    # Обрабатываем вопрос
+    await process_factcheck(message, message.text)
+
+async def process_factcheck(message: types.Message, claim: str):
+    """Основная логика проверки фактов"""
+    # Показываем, что ищем
+    status_msg = await message.reply("🔎 Ищу информацию...")
+    
+    # Используем data-эндпоинт Рувики
     search_url = "https://data.ruwiki.ru/w/api.php"
-    params = {
-        "action": "query",
-        "list": "search",
-        "srsearch": claim,
-        "format": "json",
-        "utf8": 1
-    }
     
-    # Правильные заголовки (как требует MediaWiki)
-    headers = {
-        "User-Agent": "BoltalkaBot/1.0 (Telegram bot for family chat; https://t.me/BoltalkaChatBot_bot)",
-        "Accept": "application/json"
-    }
-    
-    async with aiohttp.ClientSession() as session:
-        try:
+    # Функция для поиска
+    async def search_wiki(query):
+        params = {
+            "action": "query",
+            "list": "search",
+            "srsearch": query,
+            "format": "json",
+            "utf8": 1
+        }
+        
+        headers = {
+            "User-Agent": "BoltalkaBot/1.0 (Telegram bot for family chat; https://t.me/BoltalkaChatBot_bot)",
+            "Accept": "application/json"
+        }
+        
+        async with aiohttp.ClientSession() as session:
             async with session.get(search_url, params=params, headers=headers) as response:
                 if response.status == 200:
                     data = await response.json()
-                    if data.get("query") and data["query"].get("search"):
-                        title = data["query"]["search"][0]["title"]
-                        # Ссылка на основную Рувики
-                        result = f"🔍 <b>Нашёл информацию!</b>\n\nВот что говорит Рувики:\n<a href='https://ru.ruwiki.ru/wiki/{title.replace(' ', '_')}'>{title}</a>"
-                    else:
-                        result = "🤔 Не могу найти точную информацию. Возможно, это миф или малоизвестный факт."
-                elif response.status == 403:
-                    # Дополнительная диагностика
-                    logger.error(f"Ruwiki 403: Headers={response.headers}")
-                    result = "❌ Рувики временно недоступна. Попробуй позже или используй другой источник."
-                else:
-                    result = f"❌ Ошибка при обращении к Рувики. Статус: {response.status}"
-        except Exception as e:
-            logger.error(f"Fact check error: {e}")
-            result = f"❌ Ошибка при проверке: {e}"
+                    return data.get("query", {}).get("search", [])
+                return []
     
-    await message.reply(result)
+    try:
+        # Пробуем найти по исходному запросу
+        results = await search_wiki(claim)
+        
+        # Если ничего не нашли, пробуем извлечь ключевые слова
+        if not results:
+            # Убираем вопросительные слова и предлоги
+            stop_words = ['правда', 'ли', 'что', 'как', 'где', 'когда', 'почему', 
+                         'зачем', 'чей', 'какая', 'какое', 'какие', 'это', 'эти']
+            
+            words = claim.lower().split()
+            # Оставляем только значимые слова (длиннее 3 букв)
+            keywords = [w for w in words if len(w) > 3 and w not in stop_words]
+            
+            # Пробуем разные комбинации
+            for keyword in keywords:
+                results = await search_wiki(keyword)
+                if results:
+                    claim = keyword  # для красоты ответа
+                    break
+            
+            # Если всё ещё ничего нет, берём последнее слово
+            if not results and words:
+                last_word = words[-1]
+                if len(last_word) > 3:
+                    results = await search_wiki(last_word)
+                    if results:
+                        claim = last_word
+        
+        # Удаляем сообщение о поиске
+        await status_msg.delete()
+        
+        if results:
+            # Берём первый и самый релевантный результат
+            best_match = results[0]
+            title = best_match["title"]
+            
+            # Формируем красивый ответ
+            response = (
+                f"🔍 <b>Нашёл информацию!</b>\n\n"
+                f"По запросу: <i>«{claim}»</i>\n"
+                f"📖 Статья: <b>{title}</b>\n"
+                f"📝 Краткое описание: _{best_match.get('snippet', '').replace('<span class=\"searchmatch\">', '<b>').replace('</span>', '</b>')}_\n\n"
+                f"👉 <a href='https://ru.ruwiki.ru/wiki/{title.replace(' ', '_')}'>Читать полностью на Рувики</a>\n\n"
+                f"🔄 /factcheck — новый вопрос"
+            )
+            await message.reply(response, parse_mode="HTML")
+        else:
+            # Совсем ничего не нашли
+            await message.reply(
+                "🤔 <b>Ничего не найдено</b>\n\n"
+                "Попробуй упростить запрос или использовать ключевые слова.\n"
+                "Например: «банан», «франция», «война и мир»\n\n"
+                "🔄 /factcheck — попробовать ещё"
+            )
+            
+    except Exception as e:
+        logger.error(f"Fact check error: {e}")
+        await status_msg.edit_text(
+            "❌ Ошибка при поиске. Попробуй позже.\n"
+            "🔄 /factcheck — повторить"
+        )
 
 @dp.message_handler(lambda message: message.reply_to_message and message.text == "+")
 async def plus_karma(message: types.Message):
