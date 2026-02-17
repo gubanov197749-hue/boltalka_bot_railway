@@ -1044,13 +1044,14 @@ async def cmd_couple(message: types.Message):
 
 @dp.message_handler(commands=['factcheck'])
 async def cmd_factcheck(message: types.Message):
-    """Проверка фактов через Wikipedia"""
+    """Проверка фактов через Рувики"""
     claim = message.text.replace("/factcheck", "").strip()
     if not claim:
         await message.reply("Напиши утверждение для проверки, например:\n/factcheck Правда ли, что банан — это ягода?")
         return
     
-    search_url = "https://ru.wikipedia.org/w/api.php"
+    # Используем API Рувики
+    search_url = "https://ruwiki.ru/w/api.php"
     params = {
         "action": "query",
         "list": "search",
@@ -1062,12 +1063,19 @@ async def cmd_factcheck(message: types.Message):
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(search_url, params=params) as response:
-                data = await response.json()
-                if data["query"]["search"]:
-                    title = data["query"]["search"][0]["title"]
-                    result = f"🔍 <b>Нашёл информацию!</b>\n\nВот что говорит Википедия:\n<a href='https://ru.wikipedia.org/wiki/{title.replace(' ', '_')}'>{title}</a>"
+                # Проверяем, что ответ действительно в формате JSON
+                if response.status == 200 and 'application/json' in response.headers.get('Content-Type', ''):
+                    data = await response.json()
+                    if data["query"]["search"]:
+                        title = data["query"]["search"][0]["title"]
+                        # Ссылка тоже должна вести на Рувики
+                        result = f"🔍 <b>Нашёл информацию!</b>\n\nВот что говорит Рувики:\n<a href='https://ruwiki.ru/wiki/{title.replace(' ', '_')}'>{title}</a>"
+                    else:
+                        result = "🤔 Не могу найти точную информацию. Возможно, это миф или малоизвестный факт."
                 else:
-                    result = "🤔 Не могу найти точную информацию. Возможно, это миф или малоизвестный факт."
+                    # Если ответ не JSON, логируем и выдаём ошибку
+                    logger.error(f"Ruwiki API error: Status {response.status}, Content-Type: {response.headers.get('Content-Type')}")
+                    result = "❌ Ошибка при обращении к Рувики. Сервер временно недоступен."
         except Exception as e:
             logger.error(f"Fact check error: {e}")
             result = f"❌ Ошибка при проверке: {e}"
