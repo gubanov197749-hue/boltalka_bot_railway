@@ -24,10 +24,10 @@ last_message_time = {}
 # Словарь для подсказок (чтобы не спамить)
 last_hint_time = {}
 
-# ===== ДИАГНОСТИКА =====
-import os
-print(f"🔥 BOT_TOKEN = {os.getenv('BOT_TOKEN')}")
-print(f"🔥 MEGANOVA_API_KEY = {os.getenv('MEGANOVA_API_KEY')}")
+# ===== ДИАГНОСТИКА (удалено для безопасности) =====
+# import os
+# print(f"🔥 BOT_TOKEN = {os.getenv('BOT_TOKEN')}")
+# print(f"🔥 MEGANOVA_API_KEY = {os.getenv('MEGANOVA_API_KEY')}")
 # ========================
 
 # Глобальный список для хранения ссылок на задачи
