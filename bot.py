@@ -1138,21 +1138,25 @@ async def process_factcheck(message: types.Message, claim: str):
         # Удаляем сообщение о поиске
         await status_msg.delete()
         
-        if results:
-            # Берём первый и самый релевантный результат
-            best_match = results[0]
-            title = best_match["title"]
-            
-            # Формируем красивый ответ
-            response = (
-                f"🔍 <b>Нашёл информацию!</b>\n\n"
-                f"По запросу: <i>«{claim}»</i>\n"
-                f"📖 Статья: <b>{title}</b>\n"
-                f"📝 Краткое описание: _{best_match.get('snippet', '').replace('<span class=\"searchmatch\">', '<b>').replace('</span>', '</b>')}_\n\n"
-                f"👉 <a href='https://ru.ruwiki.ru/wiki/{title.replace(' ', '_')}'>Читать полностью на Рувики</a>\n\n"
-                f"🔄 /factcheck — новый вопрос"
-            )
-            await message.reply(response, parse_mode="HTML")
+if results:
+    # Берём первый и самый релевантный результат
+    best_match = results[0]
+    title = best_match["title"]
+    
+    # Очищаем snippet от HTML-тегов красиво
+    snippet = best_match.get('snippet', '')
+    snippet = snippet.replace('<span class="searchmatch">', '<b>').replace('</span>', '</b>')
+    
+    # Формируем красивый ответ
+    response = (
+        f"🔍 <b>Нашёл информацию!</b>\n\n"
+        f"По запросу: <i>«{claim}»</i>\n"
+        f"📖 Статья: <b>{title}</b>\n"
+        f"📝 Краткое описание: {snippet}\n\n"
+        f"👉 <a href='https://ru.ruwiki.ru/wiki/{title.replace(' ', '_')}'>Читать полностью на Рувики</a>\n\n"
+        f"🔄 /factcheck — новый вопрос"
+    )
+    await message.reply(response, parse_mode="HTML")
         else:
             # Совсем ничего не нашли
             await message.reply(
