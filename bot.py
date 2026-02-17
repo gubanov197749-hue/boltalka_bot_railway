@@ -84,15 +84,12 @@ async def game_timeout_checker():
         # Проверяем каждые 60 секунд
         await asyncio.sleep(60)
 
-# =================== УТРЕННЯЯ РАССЫЛКА ПОГОДЫ ===================
+# =================== УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ДЛЯ ПОГОДЫ ===================
 
-async def send_morning_weather():
-    """Отправляет погоду в группу"""
+async def send_weather_to_chat(chat_id: int):
+    """Отправляет погоду в указанный чат"""
     try:
-        # ID твоей семейной группы
-        GROUP_CHAT_ID = -4722324078
-        
-        logger.info("🌅 Запуск рассылки погоды")
+        logger.info(f"🌅 Запуск рассылки погоды в чат {chat_id}")
         
         weather_messages = []
         
@@ -106,12 +103,12 @@ async def send_morning_weather():
             else:
                 logger.error(f"Не удалось получить погоду для {city}")
                 await bot.send_message(
-                    GROUP_CHAT_ID,
+                    chat_id,
                     f"🌅 Доброе утро! Не удалось получить погоду для {city}, но день всё равно будет хорошим! ☀️"
                 )
         
         for msg in weather_messages:
-            await bot.send_message(GROUP_CHAT_ID, msg, parse_mode="Markdown")
+            await bot.send_message(chat_id, msg, parse_mode="Markdown")
             await asyncio.sleep(1)
             
     except Exception as e:
@@ -121,8 +118,20 @@ async def send_morning_weather():
 @dp.message_handler(commands=['testweather'])
 async def cmd_testweather(message: types.Message):
     """Команда для ручной отправки погоды"""
-    await send_morning_weather()
-    await message.reply("✅ Погода отправлена!")
+    # Отправляем погоду туда, откуда пришёл запрос
+    await send_weather_to_chat(message.chat.id)
+    
+    # Небольшое подтверждение
+    if message.chat.type == 'private':
+        await message.reply("🌤️ Погода для тебя!")
+    else:
+        await message.reply("✅ Погода отправлена в этот чат!")
+
+# ============== СТАРАЯ ФУНКЦИЯ ДЛЯ СОВМЕСТИМОСТИ ==============
+async def send_morning_weather():
+    """Отправляет погоду в группу по умолчанию"""
+    GROUP_CHAT_ID = -4722324078
+    await send_weather_to_chat(GROUP_CHAT_ID)
 
 # ================ БАЗА ДАННЫХ ================
 
