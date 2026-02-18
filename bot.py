@@ -361,7 +361,7 @@ async def check_crocodile_guess(message: types.Message) -> bool:
         conn.commit()
         conn.close()
         
-        await message.reply(
+        await message.answer(
             f"⏰ Время вышло! Никто не угадал слово *{word}*.\n"
             f"Можете начать новую игру: /crocodile"
         )
@@ -392,12 +392,12 @@ async def check_crocodile_guess(message: types.Message) -> bool:
         description = desc_result[0] if desc_result else ""
         
         if description:
-            await message.reply(
+            await message.answer(
                 f"🎉 Поздравляю, {message.from_user.first_name}! Ты угадал слово *{word}*!\n\n📖 <b>Значение:</b> {description}\n\n⭐ +1 к карме за победу!",
                 parse_mode="HTML"
             )
         else:
-            await message.reply(
+            await message.answer(
                 f"🎉 Поздравляю, {message.from_user.first_name}! Ты угадал слово *{word}*!\n\n⭐ +1 к карме за победу!",
                 parse_mode="HTML"
             )
@@ -409,7 +409,7 @@ async def check_crocodile_guess(message: types.Message) -> bool:
     
     if chat_id not in last_hint_time or now - last_hint_time[chat_id] > 30:
         hint = get_hint(message.text, word)
-        await message.reply(f"🤔 {hint}")
+        await message.answer(f"🤔 {hint}")
         last_hint_time[chat_id] = now
     
     conn.close()
@@ -496,13 +496,13 @@ async def cmd_addword(message: types.Message):
     
     # Проверяем, является ли пользователь админом
     if not await is_user_admin(message):
-        await message.reply("❌ Только администраторы могут добавлять слова")
+        await message.answer("❌ Только администраторы могут добавлять слова")
         return
     
     # Разбираем аргументы: слово | описание
     parts = message.text.split(maxsplit=1)
     if len(parts) < 2 or '|' not in parts[1]:
-        await message.reply(
+        await message.answer(
             "❌ Формат: /addword слово | описание\n"
             "Например: /addword айсберг | огромная ледяная глыба, плавающая в океане"
         )
@@ -515,13 +515,13 @@ async def cmd_addword(message: types.Message):
     
     # Проверки длины
     if len(new_word) < 3:
-        await message.reply("❌ Слово должно быть длиннее 2 букв")
+        await message.answer("❌ Слово должно быть длиннее 2 букв")
         return
     if len(new_word) > 20:
-        await message.reply("❌ Слово слишком длинное (максимум 20 букв)")
+        await message.answer("❌ Слово слишком длинное (максимум 20 букв)")
         return
     if len(description) < 5:
-        await message.reply("❌ Описание слишком короткое (минимум 5 символов)")
+        await message.answer("❌ Описание слишком короткое (минимум 5 символов)")
         return
     
     conn = sqlite3.connect('bot_database.db')
@@ -531,9 +531,9 @@ async def cmd_addword(message: types.Message):
         c.execute("INSERT INTO game_words (word, description, added_by, added_at) VALUES (?, ?, ?, ?)",
                   (new_word, description, message.from_user.id, datetime.now()))
         conn.commit()
-        await message.reply(f"✅ Слово «{new_word}» с описанием добавлено в игру!")
+        await message.answer(f"✅ Слово «{new_word}» с описанием добавлено в игру!")
     except sqlite3.IntegrityError:
-        await message.reply(f"⚠️ Слово «{new_word}» уже есть в списке")
+        await message.answer(f"⚠️ Слово «{new_word}» уже есть в списке")
     finally:
         conn.close()
 
@@ -547,7 +547,7 @@ async def cmd_words(message: types.Message):
     conn.close()
     
     if not words:
-        await message.reply("📭 Список слов пока пуст. Добавь через /addword")
+        await message.answer("📭 Список слов пока пуст. Добавь через /addword")
         return
     
     # Формируем список слов с описаниями
@@ -555,7 +555,7 @@ async def cmd_words(message: types.Message):
     for w, desc in words:
         word_list.append(f"• {w} — _{desc[:30]}..._")
     
-    await message.reply(
+    await message.answer(
         f"📚 <b>Доступные слова ({len(words)} шт.):</b>\n" + "\n".join(word_list),
         parse_mode="HTML"
     )
@@ -592,7 +592,7 @@ async def cmd_meme(message: types.Message):
     """Отправляет случайный мем"""
     
     # Сразу показываем, что бот работает
-    status_msg = await message.reply("🔍 Ищу свежий мем...")
+    status_msg = await message.answer("🔍 Ищу свежий мем...")
     
     # Получаем мем
     result = await get_random_meme()
@@ -606,7 +606,7 @@ async def cmd_meme(message: types.Message):
         caption = f"{caption_text}\n\n/meme — ещё мем"
         
         # Отправляем картинку
-        await message.reply_photo(
+        await message.answer_photo(
             photo=result["url"],
             caption=caption
         )
@@ -634,7 +634,7 @@ async def cmd_croctop(message: types.Message):
     conn.close()
     
     if not top_players:
-        await message.reply(
+        await message.answer(
             "📊 В этом чате ещё нет статистики игр в Крокодила.\n"
             "Сыграйте первую игру: /crocodile"
         )
@@ -654,7 +654,7 @@ async def cmd_croctop(message: types.Message):
         medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "▫️"
         text += f"{medal} {name} — {wins} побед из {played} игр ({win_rate:.1f}%)\n"
     
-    await message.reply(text, parse_mode="HTML")
+    await message.answer(text, parse_mode="HTML")
 # =============================================================
 
 # ================ ОБРАБОТЧИКИ КОМАНД ================
@@ -675,7 +675,7 @@ async def cmd_start(message: types.Message):
 6. 🔍 Проверять достоверность информации
 
 /help — все команды"""
-    await message.reply(text)
+    await message.answer(text)
 
 # ================ НОВЫЙ КРАСИВЫЙ HELP ================
 
@@ -703,7 +703,7 @@ async def cmd_help(message: types.Message):
         "Или просто напиши мне сообщение с @упоминанием — и я отвечу 😊"
     )
     
-    await message.reply(text, reply_markup=keyboard, parse_mode="HTML")
+    await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
 
 @dp.callback_query_handler(lambda c: c.data == "help_chat")
 async def help_chat(callback_query: types.CallbackQuery):
@@ -879,7 +879,7 @@ async def cmd_crocodile(message: types.Message):
     c.execute("SELECT * FROM games WHERE chat_id = ? AND active = 1", 
               (message.chat.id,))
     if c.fetchone():
-        await message.reply("В чате уже идёт игра! 🎮")
+        await message.answer("В чате уже идёт игра! 🎮")
         conn.close()
         return
     
@@ -897,7 +897,7 @@ async def cmd_crocodile(message: types.Message):
         InlineKeyboardButton("🔍 Подсказка", callback_data=f"hint_{word}")
     )
     
-    await message.reply(
+    await message.answer(
         f"🎮 <b>Крокодил!</b>\n"
         f"Я загадал слово. Твоя задача — объяснить его другим участникам, не называя само слово.\n\n"
         f"<i>Слово из {len(word)} букв</i>\n\n"
@@ -931,7 +931,7 @@ async def process_hint(callback_query: types.CallbackQuery):
     description = result[0] if result else "У этого слова нет подсказки 😅"
     
     # Отвечаем (уведомление появится у всех в чате)
-    await callback_query.message.reply(f"🔍 <b>Подсказка:</b> {description}", parse_mode="HTML")
+    await callback_query.message.answer(f"🔍 <b>Подсказка:</b> {description}", parse_mode="HTML")
     await callback_query.answer()
 
 # ================ ОСТАЛЬНЫЕ ОБРАБОТЧИКИ КОМАНД ================
@@ -945,14 +945,14 @@ async def cmd_karma(message: types.Message):
         user = message.from_user
     
     karma = get_user_karma(user.id, message.chat.id)
-    await message.reply(f"⭐ Карма {user.first_name}: <b>{karma}</b>")
+    await message.answer(f"⭐ Карма {user.first_name}: <b>{karma}</b>")
 
 @dp.message_handler(commands=['top'])
 async def cmd_top(message: types.Message):
     """Показать топ пользователей по карме"""
     top_users = get_top_karma(message.chat.id, 10)
     if not top_users:
-        await message.reply("Пока нет статистики в этом чате 🥺")
+        await message.answer("Пока нет статистики в этом чате 🥺")
         return
     
     text = "🏆 <b>Топ 10 по карме:</b>\n\n"
@@ -964,7 +964,7 @@ async def cmd_top(message: types.Message):
             name = f"Пользователь {user_id}"
         text += f"{i}. {name} — {karma} ⭐\n"
     
-    await message.reply(text)
+    await message.answer(text)
 
 @dp.message_handler(commands=['fact'])
 async def cmd_fact(message: types.Message):
@@ -979,25 +979,25 @@ async def cmd_fact(message: types.Message):
         "🐧 Пингвины могут прыгать в высоту до 1.5 метров",
         "🦊 Лисы используют магнитное поле Земли для охоты"
     ]
-    await message.reply(random.choice(facts))
+    await message.answer(random.choice(facts))
 
 @dp.message_handler(commands=['story'])
 async def cmd_story(message: types.Message):
     """Короткая история от нейросети"""
     prompt = "Напиши очень короткую смешную историю из жизни, 2-3 предложения"
     story = await get_ai_response(prompt, message.chat.id)
-    await message.reply(story)
+    await message.answer(story)
 
 @dp.message_handler(commands=['duel'])
 async def cmd_duel(message: types.Message):
     """Дуэль между участниками"""
     if not message.reply_to_message:
-        await message.reply("Чтобы вызвать на дуэль, ответь на сообщение противника командой /duel")
+        await message.answer("Чтобы вызвать на дуэль, ответь на сообщение противника командой /duel")
         return
     
     opponent = message.reply_to_message.from_user
     if opponent.is_bot:
-        await message.reply("С ботом нельзя дуэль! Я пацифист 🤖✌️")
+        await message.answer("С ботом нельзя дуэль! Я пацифист 🤖✌️")
         return
     
     questions = [
@@ -1010,7 +1010,7 @@ async def cmd_duel(message: types.Message):
     ]
     question = random.choice(questions)
     
-    await message.reply(
+    await message.answer(
         f"⚔️ <b>Дуэль!</b>\n"
         f"{message.from_user.first_name} против {opponent.first_name}\n\n"
         f"Вопрос: {question}\n"
@@ -1026,11 +1026,11 @@ async def cmd_couple(message: types.Message):
     except:
         # Если не админ, берем последних активных
         members = [message.from_user]
-        await message.reply("Недостаточно прав для выбора пары. Дайте мне права администратора! 🥺")
+        await message.answer("Недостаточно прав для выбора пары. Дайте мне права администратора! 🥺")
         return
     
     if len(members) < 2:
-        await message.reply("В чате недостаточно активных участников для выбора пары 😢")
+        await message.answer("В чате недостаточно активных участников для выбора пары 😢")
         return
     
     couple = random.sample(members, 2)
@@ -1042,7 +1042,7 @@ async def cmd_couple(message: types.Message):
     conn.commit()
     conn.close()
     
-    await message.reply(
+    await message.answer(
         f"💑 <b>Пара дня!</b>\n"
         f"Сегодняшняя пара: {couple[0].first_name} и {couple[1].first_name}\n"
         f"Поздравляем! 🎉"
@@ -1063,7 +1063,7 @@ async def cmd_factcheck(message: types.Message):
     
     # Если команда без вопроса — просим ввести
     user_questions[message.from_user.id] = True
-    await message.reply(
+    await message.answer(
         "🔍 <b>Режим проверки фактов</b>\n\n"
         "Напиши свой вопрос или утверждение, и я найду информацию в Рувики.\n\n"
         "Например:\n"
@@ -1085,7 +1085,7 @@ async def handle_factcheck_question(message: types.Message):
 async def process_factcheck(message: types.Message, claim: str):
     """Основная логика проверки фактов"""
     # Показываем, что ищем
-    status_msg = await message.reply("🔎 Ищу информацию...")
+    status_msg = await message.answer("🔎 Ищу информацию...")
     
     # Используем data-эндпоинт Рувики
     search_url = "https://data.ruwiki.ru/w/api.php"
@@ -1162,10 +1162,10 @@ async def process_factcheck(message: types.Message, claim: str):
                 f"👉 <a href='https://ru.ruwiki.ru/wiki/{title.replace(' ', '_')}'>Читать полностью на Рувики</a>\n\n"
                 f"🔄 /factcheck — новый вопрос"
             )
-            await message.reply(response, parse_mode="HTML")
+            await message.answer(response, parse_mode="HTML")
         else:
             # Совсем ничего не нашли
-            await message.reply(
+            await message.answer(
                 "🤔 <b>Ничего не найдено</b>\n\n"
                 "Попробуй упростить запрос или использовать ключевые слова.\n"
                 "Например: «банан», «франция», «война и мир»\n\n"
@@ -1185,14 +1185,14 @@ async def plus_karma(message: types.Message):
     if not message.reply_to_message.from_user.is_bot:
         target_user = message.reply_to_message.from_user
         add_karma(target_user.id, message.chat.id, 1)
-        await message.reply(f"⭐ {target_user.first_name} получил +1 к карме!")
+        await message.answer(f"⭐ {target_user.first_name} получил +1 к карме!")
 
 @dp.message_handler(content_types=['new_chat_members'])
 async def welcome_new_member(message: types.Message):
     """Приветствие новых участников"""
     for new_member in message.new_chat_members:
         if new_member.id == bot.id:
-            await message.reply(
+            await message.answer(
                 "Всем привет! Я ваш новый развлекательный бот 🤖\n"
                 "Напишите /help для списка команд"
             )
@@ -1200,7 +1200,7 @@ async def welcome_new_member(message: types.Message):
             keyboard = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("✅ Я человек", callback_data=f"verify_{new_member.id}")
             )
-            await message.reply(
+            await message.answer(
                 f"👋 Привет, {new_member.first_name}!\n"
                 f"Нажми кнопку, чтобы подтвердить, что ты человек:",
                 reply_markup=keyboard
@@ -1313,7 +1313,7 @@ async def ai_chat_handler(message: types.Message):
         
         logger.info(f"💬 Отвечаем на: '{prompt}'")
         response = await get_ai_response(prompt, message.chat.id)
-        await message.reply(response)
+        await message.answer(response)
     else:
         logger.info(f"⏭️ Нет причин для ответа, молчим")
 
