@@ -848,8 +848,9 @@ async def help_horoscope(callback_query: types.CallbackQuery):
         InlineKeyboardButton("◀️ Назад", callback_data="help_back")
     )
     
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    # Важно: сначала отвечаем на колбэк, потом редактируем сообщение
     await callback_query.answer()
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     logger.info("✅ help_horoscope отработал")
 
 @dp.callback_query_handler(lambda c: c.data == "help_all")
