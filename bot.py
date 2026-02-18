@@ -490,7 +490,7 @@ def get_top_karma(chat_id: int, limit: int = 10):
 
 # ================ ГОРОСКОП (RAPIDAPI) ================
 
-RAPIDAPI_KEY = "7a3f09c18dmsh25d17a2b71a4ffbp17caa7jsn97al4c600486"
+RAPIDAPI_KEY = "7a3f09c18dmsh2d517a2b71a4ffbp17caa7jsn97a14c600486"
 RAPIDAPI_HOST = "multilingual-ai-zodiac-customized-horoscopes-for-all-signs.p.rapidapi.com"
 
 # Знаки зодиака для семейного чата
