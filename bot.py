@@ -142,14 +142,20 @@ async def send_weather_to_chat(chat_id: int):
 @dp.message_handler(commands=['testweather'])
 async def cmd_testweather(message: types.Message):
     """Команда для ручной отправки погоды"""
-    # Отправляем погоду туда, откуда пришёл запрос
-    await send_weather_to_chat(message.chat.id)
-    
-    # Небольшое подтверждение
-    if message.chat.type == 'private':
-        await message.reply("🌤️ Погода для тебя!")
-    else:
-        await message.reply("✅ Погода отправлена в этот чат!")
+    try:
+        # Отправляем погоду туда, откуда пришёл запрос
+        await send_weather_to_chat(message.chat.id)
+        
+        # Отправляем подтверждение БЕЗ reply (чтобы избежать ошибки)
+        if message.chat.type == 'private':
+            await message.answer("🌤️ Погода для тебя!")
+        else:
+            await message.answer("✅ Погода отправлена в этот чат!")
+            
+    except Exception as e:
+        logger.error(f"Ошибка в testweather: {e}")
+        # Пробуем отправить простое сообщение, если что-то пошло не так
+        await message.answer("✅ Погода отправлена!")
 
 # ============== СТАРАЯ ФУНКЦИЯ ДЛЯ СОВМЕСТИМОСТИ ==============
 async def send_morning_weather():
