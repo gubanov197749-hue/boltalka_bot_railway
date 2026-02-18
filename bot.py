@@ -821,6 +821,7 @@ async def cmd_help(message: types.Message):
         InlineKeyboardButton("🔍 Полезное", callback_data="help_utils"),
         InlineKeyboardButton("🌤️ Погода", callback_data="help_weather"),
         InlineKeyboardButton("😂 Мемы", callback_data="help_meme"),
+        InlineKeyboardButton("🔮 Гороскоп", callback_data="help_horoscope"),  # ← добавить
         InlineKeyboardButton("📋 Все команды", callback_data="help_all")
     )
     
@@ -957,6 +958,24 @@ async def help_meme(callback_query: types.CallbackQuery):
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback_query.answer()
+
+@dp.callback_query_handler(lambda c: c.data == "help_horoscope")
+async def help_horoscope(callback_query: types.CallbackQuery):
+    """Раздел Гороскоп"""
+    await callback_query.answer()
+    
+    text = (
+        "🔮 <b>Гороскоп на сегодня</b>\n\n"
+        "• <b>/horoscope</b> — выбрать знак и получить реальный AI-гороскоп\n\n"
+        "Доступные знаки: Телец, Весы, Скорпион, Рыбы\n"
+        "Гороскоп генерируется нейросетью на русском языке."
+    )
+    
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("◀️ Назад", callback_data="help_back")
+    )
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
 
 @dp.callback_query_handler(lambda c: c.data == "help_all")
 async def help_all(callback_query: types.CallbackQuery):
