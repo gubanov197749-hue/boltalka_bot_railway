@@ -1077,10 +1077,22 @@ async def cmd_factcheck(message: types.Message):
 @dp.message_handler(lambda message: message.from_user.id in user_questions and not message.text.startswith('/'))
 async def handle_factcheck_question(message: types.Message):
     """Обрабатывает вопрос, введённый после команды /factcheck"""
+    logger.info(f"🔥 handle_factcheck_question вызвана для пользователя {message.from_user.id}")
+    logger.info(f"📝 Текст сообщения: {message.text}")
+    
     # Удаляем пользователя из режима ожидания
-    del user_questions[message.from_user.id]
+    if message.from_user.id in user_questions:
+        del user_questions[message.from_user.id]
+        logger.info("✅ Пользователь удалён из user_questions")
+    else:
+        logger.warning("⚠️ Пользователя нет в user_questions")
+    
     # Обрабатываем вопрос
     await process_factcheck(message, message.text)
+
+async def process_factcheck(message: types.Message, claim: str):
+    """Основная логика проверки фактов"""
+    logger.info(f"🔥 process_factcheck вызвана с claim: '{claim}'")
 
 async def process_factcheck(message: types.Message, claim: str):
     """Основная логика проверки фактов"""
