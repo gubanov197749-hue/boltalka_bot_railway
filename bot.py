@@ -513,7 +513,7 @@ async def get_horoscope(sign: str) -> dict:
             "sign": sign,
             "period": "day",
             "mode": "serious",
-            "language": "Russian",
+            "lang": "Russian",  # ← исправлено
             "date": today
         }
         
