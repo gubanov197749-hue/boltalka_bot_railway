@@ -69,12 +69,6 @@ bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
 dp = Dispatcher(bot)
 dp.middleware.setup(LoggingMiddleware())
 
-@dp.callback_query_handler(lambda c: True)
-async def catch_all_callbacks(callback_query: types.CallbackQuery):
-    """Отлавливает все колбэки для диагностики"""
-    logger.warning(f"⚠️ Пойман колбэк с data: {callback_query.data}")
-    # Не отвечаем, чтобы не мешать другим обработчикам
-
 # ================ ФОНОВЫЕ ЗАДАЧИ ================
 
 async def game_timeout_checker():
@@ -854,7 +848,7 @@ async def help_horoscope(callback_query: types.CallbackQuery):
         InlineKeyboardButton("◀️ Назад", callback_data="help_back")
     )
     
-    # Важно: сначала отвечаем на колбэк, потом редактируем сообщение
+    # Сначала отвечаем на колбэк, потом редактируем
     await callback_query.answer()
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     logger.info("✅ help_horoscope отработал")
