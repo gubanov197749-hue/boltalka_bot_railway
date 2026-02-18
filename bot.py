@@ -1093,44 +1093,45 @@ async def handle_factcheck_question(message: types.Message):
 async def process_factcheck(message: types.Message, claim: str):
     """Основная логика проверки фактов"""
     logger.info(f"🔥 process_factcheck НАЧАЛАСЬ с claim: '{claim}'")
+    
     # Показываем, что ищем
     status_msg = await message.answer("🔎 Ищу информацию...")
     
     # Используем data-эндпоинт Рувики
     search_url = "https://data.ruwiki.ru/w/api.php"
     
-    # Функция для поиска
-async def search_wiki(query):
-    params = {
-        "action": "query",
-        "list": "search",
-        "srsearch": query,
-        "srwhat": "title",        # Явно указываем поиск по заголовкам
-        "srlimit": 5,
-        "format": "json",
-        "utf8": 1
-    }
-    
-    headers = {
-        "User-Agent": "BoltalkaBot/1.0 (Telegram bot for family chat; https://t.me/BoltalkaChatBot_bot)",
-        "Accept": "application/json"
-    }
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(search_url, params=params, headers=headers) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    logger.info(f"🔍 API ответ для '{query}': {data}")
-                    results = data.get("query", {}).get("search", [])
-                    logger.info(f"📦 Найдено результатов: {len(results)}")
-                    return results
-                else:
-                    logger.error(f"❌ API ошибка: статус {response.status}")
-                    return []
-    except Exception as e:
-        logger.error(f"❌ Ошибка запроса к API: {e}")
-        return []
+    # Функция для поиска (ОПРЕДЕЛЯЕМ ДО ВЫЗОВА)
+    async def search_wiki(query):
+        params = {
+            "action": "query",
+            "list": "search",
+            "srsearch": query,
+            "srwhat": "title",
+            "srlimit": 5,
+            "format": "json",
+            "utf8": 1
+        }
+        
+        headers = {
+            "User-Agent": "BoltalkaBot/1.0 (Telegram bot for family chat; https://t.me/BoltalkaChatBot_bot)",
+            "Accept": "application/json"
+        }
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(search_url, params=params, headers=headers) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        logger.info(f"🔍 API ответ для '{query}': {data}")
+                        results = data.get("query", {}).get("search", [])
+                        logger.info(f"📦 Найдено результатов: {len(results)}")
+                        return results
+                    else:
+                        logger.error(f"❌ API ошибка: статус {response.status}")
+                        return []
+        except Exception as e:
+            logger.error(f"❌ Ошибка запроса к API: {e}")
+            return []
     
     try:
         # Пробуем найти по исходному запросу
@@ -1151,7 +1152,7 @@ async def search_wiki(query):
                 logger.info(f"🔍 Пробуем ключевое слово: '{keyword}'")
                 results = await search_wiki(keyword)
                 if results:
-                    claim = keyword  # для красоты ответа
+                    claim = keyword
                     break
             
             # Если всё ещё ничего нет, берём последнее слово
@@ -1167,15 +1168,14 @@ async def search_wiki(query):
         await status_msg.delete()
         
         if results:
-            # Берём первый и самый релевантный результат
+            # Берём первый результат
             best_match = results[0]
             title = best_match["title"]
             
-            # Очищаем snippet от HTML-тегов красиво
+            # Очищаем snippet
             snippet = best_match.get('snippet', '')
             snippet = snippet.replace('<span class="searchmatch">', '<b>').replace('</span>', '</b>')
             
-            # Формируем красивый ответ
             response = (
                 f"🔍 <b>Нашёл информацию!</b>\n\n"
                 f"По запросу: <i>«{claim}»</i>\n"
@@ -1186,7 +1186,6 @@ async def search_wiki(query):
             )
             await message.answer(response, parse_mode="HTML")
         else:
-            # Совсем ничего не нашли
             await message.answer(
                 "🤔 <b>Ничего не найдено</b>\n\n"
                 "Попробуй упростить запрос или использовать ключевые слова.\n"
