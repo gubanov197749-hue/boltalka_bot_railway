@@ -1092,25 +1092,27 @@ async def process_factcheck(message: types.Message, claim: str):
     
     # Функция для поиска
     async def search_wiki(query):
-        params = {
-            "action": "query",
-            "list": "search",
-            "srsearch": query,
-            "format": "json",
-            "utf8": 1
-        }
-        
-        headers = {
-            "User-Agent": "BoltalkaBot/1.0 (Telegram bot for family chat; https://t.me/BoltalkaChatBot_bot)",
-            "Accept": "application/json"
-        }
-        
-        async with aiohttp.ClientSession() as session:
-            async with session.get(search_url, params=params, headers=headers) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return data.get("query", {}).get("search", [])
-                return []
+    params = {
+        "action": "query",
+        "list": "search",
+        "srsearch": query,
+        "srwhat": "title",  # <- ЭТО ИСПРАВИТ ПОИСК
+        "srlimit": 5,
+        "format": "json",
+        "utf8": 1
+    }
+    
+    headers = {
+        "User-Agent": "BoltalkaBot/1.0 (Telegram bot for family chat; https://t.me/BoltalkaChatBot_bot)",
+        "Accept": "application/json"
+    }
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(search_url, params=params, headers=headers) as response:
+            if response.status == 200:
+                data = await response.json()
+                return data.get("query", {}).get("search", [])
+            return []
     
     try:
         # Пробуем найти по исходному запросу
