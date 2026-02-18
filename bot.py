@@ -78,7 +78,7 @@ async def game_timeout_checker():
             conn = sqlite3.connect('bot_database.db')
             c = conn.cursor()
             
-            # Ищем все активные игры старше 5 минут
+            # Ишем все активные игры старше 5 минут
             c.execute('''SELECT chat_id, word FROM games 
                          WHERE game_type = 'crocodile' AND active = 1 
                          AND datetime(started_at) < datetime('now', '-5 minutes')''')
@@ -683,7 +683,7 @@ async def cmd_start(message: types.Message):
 async def cmd_help(message: types.Message):
     """Красивый help с кнопками"""
     
-    # Создаем клавиатуру с разделами
+    # Создаем клавиатуру с разделами (убрана кнопка гороскопа)
     keyboard = InlineKeyboardMarkup(row_width=2)
     
     keyboard.add(
@@ -694,7 +694,6 @@ async def cmd_help(message: types.Message):
         InlineKeyboardButton("🔍 Полезное", callback_data="help_utils"),
         InlineKeyboardButton("🌤️ Погода", callback_data="help_weather"),
         InlineKeyboardButton("😂 Мемы", callback_data="help_meme"),
-        InlineKeyboardButton("🔮 Гороскоп", callback_data="help_horoscope"),
         InlineKeyboardButton("📋 Все команды", callback_data="help_all")
     )
     
@@ -832,29 +831,6 @@ async def help_meme(callback_query: types.CallbackQuery):
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback_query.answer()
 
-@dp.callback_query_handler(lambda c: c.data == "help_horoscope")
-async def help_horoscope(callback_query: types.CallbackQuery):
-    """Раздел Гороскоп"""
-    
-    # 1. СРАЗУ отвечаем на колбэк (это самая важная строка!)
-    await callback_query.answer()
-    
-    # 2. Теперь логируем и работаем дальше
-    logger.info(f"🔥 help_horoscope ВЫЗВАН для пользователя {callback_query.from_user.id}")
-    
-    text = (
-        "🔮 <b>Гороскоп на сегодня</b>\n\n"
-        "• <b>/horoscope</b> — выбрать знак и получить реальный AI-гороскоп\n\n"
-        "Доступные знаки: Телец, Весы, Скорпион, Рыбы\n"
-        "Гороскоп генерируется нейросетью на русском языке."
-    )
-    
-    keyboard = InlineKeyboardMarkup().add(
-        InlineKeyboardButton("◀️ Назад", callback_data="help_back")
-    )
-    
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
-    logger.info("✅ help_horoscope отработал")
 @dp.callback_query_handler(lambda c: c.data == "help_all")
 async def help_all(callback_query: types.CallbackQuery):
     """Все команды одним списком"""
@@ -1437,8 +1413,9 @@ async def process_horoscope(callback_query: types.CallbackQuery):
     # Находим название знака
     sign_name = next((name for name, key in ZODIAC_SIGNS.items() if key == sign_key), "Твой знак")
     
-    # Показываем, что ищем
-    await callback_query.answer()  # Закрываем уведомление
+    # Сразу отвечаем на колбэк
+    await callback_query.answer()
+    
     status_msg = await callback_query.message.answer(f"🔮 Узнаю гороскоп для {sign_name}...")
     
     # Получаем гороскоп из API
