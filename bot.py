@@ -694,6 +694,7 @@ async def cmd_help(message: types.Message):
         InlineKeyboardButton("🔍 Полезное", callback_data="help_utils"),
         InlineKeyboardButton("🌤️ Погода", callback_data="help_weather"),
         InlineKeyboardButton("😂 Мемы", callback_data="help_meme"),
+        InlineKeyboardButton("🔮 Гороскоп", callback_data="help_horoscope"),
         InlineKeyboardButton("📋 Все команды", callback_data="help_all")
     )
     
@@ -865,6 +866,23 @@ async def help_all(callback_query: types.CallbackQuery):
 async def help_back(callback_query: types.CallbackQuery):
     """Возврат в главное меню help"""
     await cmd_help(callback_query.message)
+    await callback_query.answer()
+
+@dp.callback_query_handler(lambda c: c.data == "help_horoscope")
+async def help_horoscope(callback_query: types.CallbackQuery):
+    """Раздел Гороскоп"""
+    text = (
+        "🔮 <b>Гороскоп на сегодня</b>\n\n"
+        "• <b>/horoscope</b> — выбрать знак и получить реальный AI-гороскоп\n\n"
+        "Доступные знаки: Телец, Весы, Скорпион, Рыбы\n"
+        "Гороскоп генерируется нейросетью на русском языке."
+    )
+    
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("◀️ Назад", callback_data="help_back")
+    )
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback_query.answer()
 
 # ================ КОМАНДА КРОКОДИЛ С ПОДСКАЗКОЙ ================
@@ -1336,6 +1354,132 @@ async def ai_chat_handler(message: types.Message):
         await message.answer(response)
     else:
         logger.info(f"⏭️ Нет причин для ответа, молчим")
+
+# ================ ГОРОСКОП (RAPIDAPI) ================
+
+RAPIDAPI_KEY = "7a3f09c18dmsh25d17a2b71a4ffbp17caa7jsn97al4c600486"
+RAPIDAPI_HOST = "multilingual-ai-zodiac-customized-horoscopes-for-all-signs.p.rapidapi.com"
+
+# Знаки зодиака для семейного чата
+ZODIAC_SIGNS = {
+    "♉ Телец": "taurus",
+    "♎ Весы": "libra", 
+    "♏ Скорпион": "scorpio",
+    "♓ Рыбы": "pisces"
+}
+
+async def get_horoscope(sign: str) -> dict:
+    """Получает гороскоп для указанного знака из RapidAPI"""
+    try:
+        # Получаем сегодняшнюю дату в формате YYYY-MM-DD
+        today = datetime.now().strftime("%Y-%m-%d")
+        
+        url = f"https://{RAPIDAPI_HOST}/horoscope-detailed.php"
+        
+        params = {
+            "sign": sign,
+            "period": "day",
+            "mode": "serious",
+            "language": "Russian",
+            "date": today
+        }
+        
+        headers = {
+            "X-RapidAPI-Key": RAPIDAPI_KEY,
+            "X-RapidAPI-Host": RAPIDAPI_HOST
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params, headers=headers) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    logger.info(f"🔮 API ответ для {sign}: {data}")
+                    return {"success": True, "data": data}
+                else:
+                    logger.error(f"❌ Ошибка API гороскопа: {response.status}")
+                    return {"success": False, "error": f"API error {response.status}"}
+    except Exception as e:
+        logger.error(f"❌ Ошибка запроса к API гороскопа: {e}")
+        return {"success": False, "error": str(e)}
+
+@dp.message_handler(commands=['horoscope'])
+async def cmd_horoscope(message: types.Message):
+    """Показывает гороскоп на сегодня для выбранного знака"""
+    
+    # Создаём клавиатуру с кнопками знаков
+    keyboard = InlineKeyboardMarkup(row_width=2)
+    
+    for sign_name in ZODIAC_SIGNS.keys():
+        keyboard.insert(
+            InlineKeyboardButton(sign_name, callback_data=f"horo_{ZODIAC_SIGNS[sign_name]}")
+        )
+    
+    await message.answer(
+        "🔮 <b>Гороскоп на сегодня</b>\n\n"
+        "Выбери свой знак зодиака, и я расскажу, что звёзды приготовили для тебя ✨",
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+
+@dp.callback_query_handler(lambda c: c.data and c.data.startswith('horo_'))
+async def process_horoscope(callback_query: types.CallbackQuery):
+    """Обработчик выбора знака зодиака"""
+    
+    # Получаем знак из callback_data
+    sign_key = callback_query.data.replace('horo_', '')
+    
+    # Находим название знака
+    sign_name = next((name for name, key in ZODIAC_SIGNS.items() if key == sign_key), "Твой знак")
+    
+    # Показываем, что ищем
+    await callback_query.answer()  # Закрываем уведомление
+    status_msg = await callback_query.message.answer(f"🔮 Узнаю гороскоп для {sign_name}...")
+    
+    # Получаем гороскоп из API
+    result = await get_horoscope(sign_key)
+    
+    # Удаляем сообщение о поиске
+    await status_msg.delete()
+    
+    if result["success"] and result["data"]:
+        data = result["data"]
+        
+        # Извлекаем данные из ответа API
+        sign = data.get("sign", sign_name)
+        date = data.get("date", datetime.now().strftime("%d.%m.%Y"))
+        horoscope_text = data.get("text", "")
+        mood = data.get("mood", "")
+        lucky_number = data.get("lucky_number", "")
+        lucky_color = data.get("lucky_color", "")
+        
+        # Формируем красивое сообщение
+        response = f"🔮 <b>Гороскоп для {sign}</b>\n📅 на {date}\n\n{horoscope_text}\n"
+        
+        if mood:
+            response += f"\n😊 Настроение: {mood}"
+        if lucky_number:
+            response += f"\n🔢 Счастливое число: {lucky_number}"
+        if lucky_color:
+            response += f"\n🎨 Цвет дня: {lucky_color}"
+        
+        response += "\n\n🌟 Хорошего дня!"
+        
+        await callback_query.message.answer(response, parse_mode="HTML")
+    else:
+        # Запасной вариант на случай ошибки API
+        fallback = {
+            "taurus": "Звёзды говорят, что сегодня Тельцам стоит обратить внимание на финансовые вопросы и быть открытыми к новым знакомствам.",
+            "libra": "Весам сегодня звёзды рекомендуют уделить время семье и не бояться принимать важные решения.",
+            "scorpio": "Скорпионов ждёт день, полный энергии и неожиданных поворотов — доверьтесь интуиции.",
+            "pisces": "Рыбам сегодня стоит прислушаться к советам близких и не торопиться с выводами."
+        }
+        
+        await callback_query.message.answer(
+            f"🔮 <b>Гороскоп для {sign_name}</b>\n\n"
+            f"{fallback.get(sign_key, 'Сегодня отличный день!')}\n\n"
+            f"🌟 Хорошего дня!",
+            parse_mode="HTML"
+        )
 
 # ================ ЗАПУСК ФОНОВЫХ ЗАДАЧ ================
 
