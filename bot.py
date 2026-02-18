@@ -1091,27 +1091,36 @@ async def process_factcheck(message: types.Message, claim: str):
     search_url = "https://data.ruwiki.ru/w/api.php"
     
     # Функция для поиска
-async def search_wiki(query):
-    params = {
-        "action": "query",
-        "list": "search",
-        "srsearch": query,
-        "srwhat": "title",
-        "srlimit": 5,
-        "format": "json",
-        "utf8": 1
-    }
-    
-    headers = {
-        "User-Agent": "BoltalkaBot/1.0 (Telegram bot for family chat; https://t.me/BoltalkaChatBot_bot)",
-        "Accept": "application/json"
-    }
-    
-    async with aiohttp.ClientSession() as session:
-        async with session.get(search_url, params=params, headers=headers) as response:
-            if response.status == 200:
-                data = await response.json()
-                return data.get("query", {}).get("search", [])
+    async def search_wiki(query):
+        params = {
+            "action": "query",
+            "list": "search",
+            "srsearch": query,
+            "srwhat": "title",      # ищем по заголовкам
+            "srlimit": 5,            # больше результатов
+            "format": "json",
+            "utf8": 1
+        }
+        
+        headers = {
+            "User-Agent": "BoltalkaBot/1.0 (Telegram bot for family chat; https://t.me/BoltalkaChatBot_bot)",
+            "Accept": "application/json"
+        }
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(search_url, params=params, headers=headers) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        logger.info(f"🔍 API ответ для '{query}': {data}")
+                        results = data.get("query", {}).get("search", [])
+                        logger.info(f"📦 Найдено результатов: {len(results)}")
+                        return results
+                    else:
+                        logger.error(f"❌ API ошибка: статус {response.status}")
+                        return []
+        except Exception as e:
+            logger.error(f"❌ Ошибка запроса к API: {e}")
             return []
     
     try:
@@ -1130,6 +1139,7 @@ async def search_wiki(query):
             
             # Пробуем разные комбинации
             for keyword in keywords:
+                logger.info(f"🔍 Пробуем ключевое слово: '{keyword}'")
                 results = await search_wiki(keyword)
                 if results:
                     claim = keyword  # для красоты ответа
@@ -1139,6 +1149,7 @@ async def search_wiki(query):
             if not results and words:
                 last_word = words[-1]
                 if len(last_word) > 3:
+                    logger.info(f"🔍 Пробуем последнее слово: '{last_word}'")
                     results = await search_wiki(last_word)
                     if results:
                         claim = last_word
@@ -1175,7 +1186,7 @@ async def search_wiki(query):
             )
             
     except Exception as e:
-        logger.error(f"Fact check error: {e}")
+        logger.error(f"❌ Ошибка в process_factcheck: {e}", exc_info=True)
         await status_msg.edit_text(
             "❌ Ошибка при поиске. Попробуй позже.\n"
             "🔄 /factcheck — повторить"
