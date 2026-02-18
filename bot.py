@@ -832,6 +832,23 @@ async def help_meme(callback_query: types.CallbackQuery):
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback_query.answer()
 
+@dp.callback_query_handler(lambda c: c.data == "help_horoscope")
+async def help_horoscope(callback_query: types.CallbackQuery):
+    """Раздел Гороскоп"""
+    text = (
+        "🔮 <b>Гороскоп на сегодня</b>\n\n"
+        "• <b>/horoscope</b> — выбрать знак и получить реальный AI-гороскоп\n\n"
+        "Доступные знаки: Телец, Весы, Скорпион, Рыбы\n"
+        "Гороскоп генерируется нейросетью на русском языке."
+    )
+    
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("◀️ Назад", callback_data="help_back")
+    )
+    
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    await callback_query.answer()
+
 @dp.callback_query_handler(lambda c: c.data == "help_all")
 async def help_all(callback_query: types.CallbackQuery):
     """Все команды одним списком"""
@@ -866,23 +883,6 @@ async def help_all(callback_query: types.CallbackQuery):
 async def help_back(callback_query: types.CallbackQuery):
     """Возврат в главное меню help"""
     await cmd_help(callback_query.message)
-    await callback_query.answer()
-
-@dp.callback_query_handler(lambda c: c.data == "help_horoscope")
-async def help_horoscope(callback_query: types.CallbackQuery):
-    """Раздел Гороскоп"""
-    text = (
-        "🔮 <b>Гороскоп на сегодня</b>\n\n"
-        "• <b>/horoscope</b> — выбрать знак и получить реальный AI-гороскоп\n\n"
-        "Доступные знаки: Телец, Весы, Скорпион, Рыбы\n"
-        "Гороскоп генерируется нейросетью на русском языке."
-    )
-    
-    keyboard = InlineKeyboardMarkup().add(
-        InlineKeyboardButton("◀️ Назад", callback_data="help_back")
-    )
-    
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback_query.answer()
 
 # ================ КОМАНДА КРОКОДИЛ С ПОДСКАЗКОЙ ================
