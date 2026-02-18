@@ -1065,7 +1065,7 @@ async def cmd_factcheck(message: types.Message):
     user_questions[message.from_user.id] = True
     await message.answer(
         "🔍 <b>Режим проверки фактов</b>\n\n"
-        "Напиши свой вопрос или утверждение, и я найду информацию в Рувики.\n\n"
+        "Напиши свой вопрос или утверждение, и я найду информацию в Википедии.\n\n"
         "Например:\n"
         "• банан это ягода\n"
         "• столица Франции\n"
@@ -1091,22 +1091,21 @@ async def handle_factcheck_question(message: types.Message):
     await process_factcheck(message, message.text)
 
 async def process_factcheck(message: types.Message, claim: str):
-    """Основная логика проверки фактов"""
+    """Основная логика проверки фактов (Wikipedia)"""
     logger.info(f"🔥 process_factcheck НАЧАЛАСЬ с claim: '{claim}'")
     
     # Показываем, что ищем
-    status_msg = await message.answer("🔎 Ищу информацию...")
+    status_msg = await message.answer("🔎 Ищу информацию в Википедии...")
     
-    # Используем data-эндпоинт Рувики
-    search_url = "https://data.ruwiki.ru/w/api.php"
+    # Используем Wikipedia API
+    search_url = "https://ru.wikipedia.org/w/api.php"
     
-    # Функция для поиска (ОПРЕДЕЛЯЕМ ДО ВЫЗОВА)
+    # Функция для поиска
     async def search_wiki(query):
         params = {
             "action": "query",
             "list": "search",
             "srsearch": query,
-            "srwhat": "title",
             "srlimit": 5,
             "format": "json",
             "utf8": 1
@@ -1181,7 +1180,7 @@ async def process_factcheck(message: types.Message, claim: str):
                 f"По запросу: <i>«{claim}»</i>\n"
                 f"📖 Статья: <b>{title}</b>\n"
                 f"📝 Краткое описание: {snippet}\n\n"
-                f"👉 <a href='https://ru.ruwiki.ru/wiki/{title.replace(' ', '_')}'>Читать полностью на Рувики</a>\n\n"
+                f"👉 <a href='https://ru.wikipedia.org/wiki/{title.replace(' ', '_')}'>Читать полностью на Википедии</a>\n\n"
                 f"🔄 /factcheck — новый вопрос"
             )
             await message.answer(response, parse_mode="HTML")
