@@ -1092,6 +1092,12 @@ async def handle_factcheck_question(message: types.Message):
 
 async def process_factcheck(message: types.Message, claim: str):
     """Основная логика проверки фактов"""
+    logger.info(f"🔥 process_factcheck НАЧАЛАСЬ с claim: '{claim}'")  # ← ЭТО СТРОКА
+    # Показываем, что ищем
+    status_msg = await message.answer("🔎 Ищу информацию...")
+
+async def process_factcheck(message: types.Message, claim: str):
+    """Основная логика проверки фактов"""
     logger.info(f"🔥 process_factcheck вызвана с claim: '{claim}'")
 
 async def process_factcheck(message: types.Message, claim: str):
