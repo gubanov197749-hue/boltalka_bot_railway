@@ -1091,12 +1091,12 @@ async def process_factcheck(message: types.Message, claim: str):
     search_url = "https://data.ruwiki.ru/w/api.php"
     
     # Функция для поиска
-    async def search_wiki(query):
+async def search_wiki(query):
     params = {
         "action": "query",
         "list": "search",
         "srsearch": query,
-        "srwhat": "title",  # <- ЭТО ИСПРАВИТ ПОИСК
+        "srwhat": "title",
         "srlimit": 5,
         "format": "json",
         "utf8": 1
