@@ -69,6 +69,12 @@ bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
 dp = Dispatcher(bot)
 dp.middleware.setup(LoggingMiddleware())
 
+@dp.callback_query_handler(lambda c: True)
+async def catch_all_callbacks(callback_query: types.CallbackQuery):
+    """Отлавливает все колбэки для диагностики"""
+    logger.warning(f"⚠️ Пойман колбэк с data: {callback_query.data}")
+    # Не отвечаем, чтобы не мешать другим обработчикам
+
 # ================ ФОНОВЫЕ ЗАДАЧИ ================
 
 async def game_timeout_checker():
