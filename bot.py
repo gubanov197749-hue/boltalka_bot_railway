@@ -1250,7 +1250,7 @@ async def welcome_new_member(message: types.Message):
                 reply_markup=keyboard
             )
 
-@dp.callback_query_handler(lambda c: c.data and c.data.startswith('verify_'))
+@dp.callback_query_handler(lambda c: c.data and c.data.startswith('verify_') and c.data[7:].isdigit())
 async def verify_callback(callback_query: types.CallbackQuery):
     """Подтверждение человека"""
     user_id = int(callback_query.data.split("_")[1])
