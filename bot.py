@@ -835,6 +835,8 @@ async def help_meme(callback_query: types.CallbackQuery):
 @dp.callback_query_handler(lambda c: c.data == "help_horoscope")
 async def help_horoscope(callback_query: types.CallbackQuery):
     """Раздел Гороскоп"""
+    logger.info(f"🔥 help_horoscope ВЫЗВАН для пользователя {callback_query.from_user.id}")
+    
     text = (
         "🔮 <b>Гороскоп на сегодня</b>\n\n"
         "• <b>/horoscope</b> — выбрать знак и получить реальный AI-гороскоп\n\n"
@@ -848,6 +850,7 @@ async def help_horoscope(callback_query: types.CallbackQuery):
     
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback_query.answer()
+    logger.info("✅ help_horoscope отработал")
 
 @dp.callback_query_handler(lambda c: c.data == "help_all")
 async def help_all(callback_query: types.CallbackQuery):
