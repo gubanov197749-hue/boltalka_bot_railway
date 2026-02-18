@@ -69,11 +69,6 @@ bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
 dp = Dispatcher(bot)
 dp.middleware.setup(LoggingMiddleware())
 
-# ===== АВТОМАТИЧЕСКИЙ ОТВЕТ НА ВСЕ КОЛБЭКИ =====
-from aiogram.utils.callback_answer import CallbackAnswerMiddleware
-dp.callback_query.middleware(CallbackAnswerMiddleware())
-# =================================================
-
 # ================ ФОНОВЫЕ ЗАДАЧИ ================
 
 async def game_timeout_checker():
